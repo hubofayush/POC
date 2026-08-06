@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     PRESIDIO_MIN_SCORE: float = 0.6                 # Minimum confidence score to report a finding (0.0–1.0)
     PRESIDIO_ANONYMIZER_MODE: str = "replace"       # "replace" | "redact" | "hash"
 
+    # D3 Egress — timeout, retry, circuit breaker
+    D3_TIMEOUT_SEC: float = 5.0                     # Per-attempt timeout for the D3 call
+    D3_MAX_RETRIES: int = 2                         # Additional attempts after the first (exponential backoff)
+    D3_RETRY_BASE_DELAY_SEC: float = 0.25           # First backoff base (doubles per retry)
+    D3_CIRCUIT_FAILURE_THRESHOLD: int = 5           # Consecutive failures before the breaker opens
+    D3_CIRCUIT_RESET_SEC: float = 30.0              # Time in open state before a half-open probe
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
     
 settings = Settings()

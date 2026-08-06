@@ -11,13 +11,15 @@ import time
 from typing import Any
 from uuid import uuid4
 
+from fastapi import HTTPException
+
 from app.schemas import InvokeRequest, InvokeResponse
 from app.core.phi.masker import mask_phi
 from app.core.tracing import tracer
 from app.core.audit import log_entry
 from app.core.logging import get_logger
 from app.core.security.rbac import check_org
-from app.integrations.d3_client import d3_client
+from app.integrations.d3_client import d3_client, D3CallError
 from app.services.ingress import run_ingress_guardrails
 from app.services.egress import verify_citations, filter_by_role
 
@@ -112,11 +114,45 @@ async def process_invoke(
     logger.info("d3.call", trace_id=trace_id, payload=d3_payload)
 
     d3_span = await tracer.create_span(trace_id, "d3_client_execution")
-    d3_resp = await d3_client.call_invoke(
-        trace_id=trace_id,
-        input=safe_input,
-        context=request.context,
-    )
+    try:
+        d3_resp = await d3_client.call_invoke(
+            trace_id=trace_id,
+            input=safe_input,
+            context=request.context,
+        )
+    except D3CallError as exc:
+        await tracer.end_span(d3_span, {"status": "failed", "error": str(exc)})
+        await tracer.end_trace(trace_id, status="failed", metadata={"error": str(exc)})
+        await log_entry(
+            user_id=user["sub"],
+            user_role=user_role,
+            user_org=user_org,
+            client_ip=client_ip,
+            user_agent=user_agent,
+            request_path="/invoke",
+            http_method="POST",
+            latency_ms=round((time.monotonic() - t0) * 1000, 2),
+            input_bytes=input_bytes,
+            action="invoke",
+            resource_type="compliance_check",
+            resource_id=request.context.get("clinician_id", "unknown"),
+            phi_accessed=not requires_phi,
+            status="block",
+            guardrail_code="D3_UNAVAILABLE",
+            guardrail_layer="egress.d3",
+            trace_id=trace_id,
+            details=f"error={type(exc).__name__}: {exc}",
+        )
+        logger.error(
+            "egress.d3.failed",
+            trace_id=trace_id,
+            error=type(exc).__name__,
+            msg="D3 downstream unavailable; returning 503",
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Downstream service unavailable. Please retry shortly.",
+        ) from exc
     await tracer.end_span(d3_span, {"tier": d3_resp.get("tier", "unknown")})
 
     logger.info(
