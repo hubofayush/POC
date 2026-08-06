@@ -76,9 +76,10 @@ postman/           postman_collection.json
 
 ## Production notes
 
+- Deploy: `docker compose up -d` (Postgres + app with healthchecks) — see
+  `docs/DEPLOYMENT.md` for the full runbook (secrets, keys, migrations, backups)
 - Postgres: set `DATABASE_URL=postgresql+asyncpg://...` and
   `DB_AUTO_CREATE=false`; apply schema with `alembic upgrade head`
-- Deploy: `docker compose up -d` (Postgres + app with healthchecks)
 - Rate limits key on the real client IP when `TRUST_PROXY_COUNT>0` — only
   enable behind a trusted proxy
 - See `docs/RUNBOOK.md` (ops/troubleshooting) and `docs/OPERATIONS.md`
