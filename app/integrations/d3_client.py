@@ -17,6 +17,7 @@ from typing import Any, Awaitable, Callable
 
 from app.config import settings
 from app.core.logging import get_logger
+from app.observability import metrics
 
 logger = get_logger(__name__)
 
@@ -55,6 +56,7 @@ class CircuitBreaker:
         # open: allow a probe after the reset window
         if time.monotonic() - (self.opened_at or 0) >= self.reset_seconds:
             self.state = "half_open"
+            metrics.set_circuit_state(self.state)
             return True
         return False
 
@@ -67,11 +69,13 @@ class CircuitBreaker:
         self.state = "closed"
         self.failures = 0
         self.opened_at = None
+        metrics.set_circuit_state(self.state)
 
     def record_failure(self):
         if self.state == "half_open":
             self.state = "open"
             self.opened_at = time.monotonic()
+            metrics.set_circuit_state(self.state)
             logger.warning(
                 "egress.d3.circuit_reopened",
                 msg="D3 probe failed; circuit breaker reopened",
@@ -81,6 +85,7 @@ class CircuitBreaker:
         if self.failures >= self.failure_threshold:
             self.state = "open"
             self.opened_at = time.monotonic()
+            metrics.set_circuit_state(self.state)
             logger.warning(
                 "egress.d3.circuit_opened",
                 failures=self.failures,

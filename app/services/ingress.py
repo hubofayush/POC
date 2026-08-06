@@ -16,6 +16,7 @@ from app.core.guardrails.base import GuardrailException
 from app.core.guardrails.pipeline import ingress_pipeline
 from app.core.audit import log_guardrail_event
 from app.core.logging import get_logger
+from app.observability import metrics
 
 logger = get_logger(__name__)
 
@@ -102,6 +103,9 @@ async def run_ingress_guardrails(
         )
 
         latency_ms = round((time.monotonic() - t0) * 1000, 2)
+        metrics.GUARDRAIL_DECISIONS.labels(
+            layer="pipeline", decision="pass", code="PIPELINE_PASSED"
+        ).inc()
         logger.info(
             "guardrail.pipeline.passed",
             trace_id=trace_id,
@@ -130,6 +134,9 @@ async def run_ingress_guardrails(
     except GuardrailException as exc:
         latency_ms = round((time.monotonic() - t0) * 1000, 2)
         result = exc.result
+        metrics.GUARDRAIL_DECISIONS.labels(
+            layer=result.layer, decision="block", code=result.code
+        ).inc()
         logger.warning(
             "guardrail.pipeline.blocked",
             trace_id=trace_id,

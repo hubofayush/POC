@@ -1,12 +1,15 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timezone
+
+from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_client import generate_latest
 
 from app.config import settings
 from app.middleware.error_handler import register_error_handlers
-from app.middleware.rate_limit import add_rate_limiting, limiter
+from app.middleware.rate_limit import add_rate_limiting
 from app.middleware.body_limit import BodySizeLimitMiddleware
+from app.middleware.http_metrics import HttpMetricsMiddleware
 from app.models.database import create_tables, engine
 
 @asynccontextmanager
@@ -36,6 +39,7 @@ if _cors_origins:
 register_error_handlers(app)
 app.add_middleware(BodySizeLimitMiddleware)
 add_rate_limiting(app)
+app.add_middleware(HttpMetricsMiddleware)  # outermost: captures all paths/statuses
 
 
 @app.get("/health")
@@ -46,6 +50,14 @@ async def health():
         "version": settings.VERSION,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics_endpoint():
+    return Response(
+        content=generate_latest(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
     
 from app.api.v1.auth import router as auth_router
 from app.api.v1.audit import router as audit_router
