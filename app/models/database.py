@@ -59,6 +59,31 @@ class AuditEntry(Base):
     trace_id: Mapped[str] = mapped_column(String(36), index=True, default="")
     details: Mapped[str] = mapped_column(Text, default="")
     entry_hash: Mapped[str] = mapped_column(String(64), default="")
+    # SHA-256 of the previous entry's hash — forms the tamper-evident chain
+    prev_hash: Mapped[str] = mapped_column(String(64), default="")
+
+
+class Trace(Base):
+    """
+    Persisted distributed-trace record with embedded JSON spans.
+
+    Spans are stored as JSON on the trace row (POC scale); a normalized
+    span table can replace this if span volume grows.
+    """
+    __tablename__ = "traces"
+
+    trace_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(100), index=True)
+    org: Mapped[str] = mapped_column(String(100), index=True, default="unknown")
+    action: Mapped[str] = mapped_column(String(100), default="invoke")
+    input_preview: Mapped[str] = mapped_column(Text, default="")
+    start_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), index=True, default="pending")
+    metadata_json: Mapped[str] = mapped_column(Text, default="{}")
+    spans_json: Mapped[str] = mapped_column(Text, default="[]")
 
 
 class User(Base):
