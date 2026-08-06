@@ -18,7 +18,9 @@ async def client():
 
 @pytest.fixture
 async def admin_token(client):
-    resp = await client.post("/auth/login", json={"user_id": "admin_01", "password": "pass123"})
+    from app.repositories.auth_repository import ensure_demo_users
+    await ensure_demo_users()
+    resp = await client.post("/auth/login", json={"username": "admin_01", "password": "pass123"})
     return resp.json()["access_token"]
 
 
@@ -68,7 +70,9 @@ async def test_audit_endpoint(client, admin_token):
 
 @pytest.mark.asyncio
 async def test_audit_forbidden(client):
-    resp = await client.post("/auth/login", json={"user_id": "clinician_01", "password": "pass123"})
+    from app.repositories.auth_repository import ensure_demo_users
+    await ensure_demo_users()
+    resp = await client.post("/auth/login", json={"username": "clinician_01", "password": "pass123"})
     token = resp.json()["access_token"]
     resp = await client.get("/audit/logs", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 403

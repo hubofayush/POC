@@ -12,7 +12,9 @@ async def client():
 
 @pytest.fixture
 async def admin_token(client):
-    resp = await client.post("/auth/login", json={"user_id": "admin_01", "password": "pass123"})
+    from app.repositories.auth_repository import ensure_demo_users
+    await ensure_demo_users()
+    resp = await client.post("/auth/login", json={"username": "admin_01", "password": "pass123"})
     return resp.json()["access_token"]
 
 

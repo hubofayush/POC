@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     JWT_REFRESH_EXPIRE_DAYS: int = 7
     JWT_PRIVATE_KEY_PATH: str = str(Path("keys/private.pem"))
     JWT_PUBLIC_KEY_PATH: str = str(Path("keys/public.pem"))
+    JWT_ISSUER: str = "d5-security-layer"
+    JWT_AUDIENCE: str = "d5-gateway"
+    AUTH_MAX_FAILED_ATTEMPTS: int = 5
+    AUTH_LOCKOUT_MINUTES: int = 15
 
     # LangSmith (set in .env to enable)
     LANGSMITH_API_KEY: str = ""
