@@ -12,8 +12,13 @@ Make sure the server is running first:
 
 import asyncio
 import json
+import os
 import sys
 import httpx
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.repositories.auth_repository import ensure_demo_users
 
 BASE = "http://localhost:8000"
 
@@ -93,6 +98,9 @@ async def main():
 
     async with httpx.AsyncClient(timeout=15) as client:
 
+        # ── Seed demo users if missing ─────────────────────────────────
+        await ensure_demo_users()
+
         # ── Health check ───────────────────────────────────────────────
         banner("0  SERVER HEALTH CHECK", MAGENTA)
         r = await client.get(f"{BASE}/health")
@@ -109,7 +117,7 @@ async def main():
         ]:
             r = await client.post(
                 f"{BASE}/auth/login",
-                json={"user_id": user_id, "password": "pass123"},
+                json={"username": user_id, "password": "pass123"},
             )
             tokens[role_label] = r.json()["access_token"]
             print(f"  {GREEN}✓{RESET}  Logged in as {BOLD}{role_label}{RESET} ({user_id})")

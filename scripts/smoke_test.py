@@ -8,22 +8,24 @@ import httpx
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app.models.database import create_tables
+from app.repositories.auth_repository import ensure_demo_users
 
 BASE = "http://localhost:8000"
 
 async def smoke():
     await create_tables()
-    async with httpx.AsyncClient(timeout=10) as c:
+    await ensure_demo_users()
+    async with httpx.AsyncClient(timeout=30) as c:
         r = await c.get(f"{BASE}/health")
         print(f"Health: {r.status_code} {r.json().get('status')}")
 
-        r = await c.post(f"{BASE}/auth/login", json={"user_id": "admin_01", "password": "pass123"})
+        r = await c.post(f"{BASE}/auth/login", json={"username": "admin_01", "password": "pass123"})
         admin_token = r.json()["access_token"]
 
-        r = await c.post(f"{BASE}/auth/login", json={"user_id": "hr_01", "password": "pass123"})
+        r = await c.post(f"{BASE}/auth/login", json={"username": "hr_01", "password": "pass123"})
         hr_token = r.json()["access_token"]
 
-        r = await c.post(f"{BASE}/auth/login", json={"user_id": "clinician_01", "password": "pass123"})
+        r = await c.post(f"{BASE}/auth/login", json={"username": "clinician_01", "password": "pass123"})
         cli_token = r.json()["access_token"]
 
         admin_hdr = {"Authorization": f"Bearer {admin_token}"}
