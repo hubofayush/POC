@@ -23,7 +23,7 @@ async def test_invoke_success(client, admin_token):
     resp = await client.post(
         "/invoke",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"input": "Check credentials", "context": {"clinician_id": "c1"}},
+        json={"input": "Check credentials", "context": {"clinician_id": "c1", "consent_granted": True}},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -44,7 +44,7 @@ async def test_invoke_expired_check(client, admin_token):
     resp = await client.post(
         "/invoke",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"input": "Is the nursing license expired?", "context": {}},
+        json={"input": "Is the nursing license expired?", "context": {"consent_granted": True}},
     )
     assert resp.status_code == 200
     assert "expired" in resp.json()["output"].lower()
@@ -55,7 +55,7 @@ async def test_invoke_missing_check(client, admin_token):
     resp = await client.post(
         "/invoke",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"input": "What credentials are missing?", "context": {}},
+        json={"input": "What credentials are missing?", "context": {"consent_granted": True}},
     )
     assert resp.status_code == 200
     assert "missing" in resp.json()["output"].lower()

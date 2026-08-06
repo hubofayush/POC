@@ -202,9 +202,17 @@ class TestLayer3Policy:
         assert exc_info.value.result.code == "CONSENT_DENIED"
 
     @pytest.mark.asyncio
-    async def test_consent_absent_passes(self):
-        """Absent consent_granted key defaults to True (not blocked)."""
+    async def test_consent_absent_blocked_by_default(self):
+        """Absent consent_granted key must be denied (default-deny in prod)."""
         ctx = {"clinician_id": "c1"}  # no consent_granted key
+        with pytest.raises(GuardrailException) as exc_info:
+            await _run(CLEAN_INPUT, ctx, ADMIN_USER)
+        assert exc_info.value.result.code == "CONSENT_DENIED"
+
+    @pytest.mark.asyncio
+    async def test_consent_explicit_true_passes(self):
+        """Explicit consent_granted=True must pass under default-deny."""
+        ctx = {"clinician_id": "c1", "consent_granted": True}
         results = await _run(CLEAN_INPUT, ctx, ADMIN_USER)
         codes = [r.code for r in results]
         assert "CONSENT_DENIED" not in codes
