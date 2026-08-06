@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: d5
+      POSTGRES_USER: d5
+      POSTGRES_PASSWORD: d5_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://d5:d5_secret@db:5432/d5
+      JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
+      JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
+    depends_on:
+      - db
+    volumes:
+      - ./keys:/app/keys
+
+volumes:
+  pgdata:

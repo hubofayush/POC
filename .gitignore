@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+keys/
+*.pem
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Test & coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.deepeval/
+
+# Logs
+audit.log
+*.log
