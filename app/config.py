@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     AUTH_MAX_FAILED_ATTEMPTS: int = 5
     AUTH_LOCKOUT_MINUTES: int = 15
 
+    # CORS — comma-separated allowlist of origins; empty = same-origin only
+    CORS_ALLOW_ORIGINS: str = ""
+
     # LangSmith (set in .env to enable)
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "d5-poc"
