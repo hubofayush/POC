@@ -11,6 +11,7 @@ from app.middleware.error_handler import register_error_handlers
 from app.middleware.rate_limit import add_rate_limiting
 from app.middleware.body_limit import BodySizeLimitMiddleware
 from app.middleware.http_metrics import HttpMetricsMiddleware
+from app.middleware.request_log import RequestLogMiddleware
 from app.models.database import create_tables, engine
 from app.core.logging import get_logger
 
@@ -44,6 +45,7 @@ register_error_handlers(app)
 app.add_middleware(BodySizeLimitMiddleware)
 add_rate_limiting(app)
 app.add_middleware(HttpMetricsMiddleware)  # outermost: captures all paths/statuses
+app.add_middleware(RequestLogMiddleware)
 
 
 @app.get("/health")
