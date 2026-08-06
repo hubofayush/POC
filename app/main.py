@@ -10,7 +10,8 @@ from app.models.database import create_tables, engine
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_tables()
+    if settings.DB_AUTO_CREATE:
+        await create_tables()
     yield
     await engine.dispose()
 

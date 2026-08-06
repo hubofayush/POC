@@ -61,6 +61,51 @@ class AuditEntry(Base):
     entry_hash: Mapped[str] = mapped_column(String(64), default="")
 
 
+class User(Base):
+    """
+    Application user with argon2 password hashing and brute-force lockout state.
+    """
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    username: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(50), default="hr")
+    org: Mapped[str] = mapped_column(String(100), index=True, default="unknown")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Brute-force protection state
+    failed_attempts: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RefreshToken(Base):
+    """
+    Refresh-token registry for rotation and reuse detection.
+
+    Only the SHA-256 hash of the raw token is stored (never the token itself).
+    ``family_id`` groups rotated generations; presenting a revoked token revokes
+    the whole family (theft detection).
+    """
+    __tablename__ = "refresh_tokens"
+
+    jti: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    family_id: Mapped[str] = mapped_column(String(36), index=True)
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    replaced_by_jti: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
 # ── Database Immutability Event Listeners ────────────────────────────────────
 # Prevents UPDATE or DELETE on AuditEntry to enforce tamper-proof audit trails
 

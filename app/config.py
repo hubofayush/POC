@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     # database
     DATABASE_URL :str = "sqlite+aiosqlite:///./d5_dev.db"
     # Production: "postgresql+asyncpg://user:pass@localhost:5432/d5"
+    # Create tables on startup (dev convenience). Set false in prod — use alembic.
+    DB_AUTO_CREATE: bool = True
 
     #security
     JWT_ALGORITHM : str = "RS256"
