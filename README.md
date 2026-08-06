@@ -28,7 +28,8 @@ py -m venv .venv && .venv\Scripts\activate   # Windows
 pip install -e ".[dev]"
 
 # 2. RSA keys for JWT (RS256)
-py scripts/gen_keys.py                       # or openssl genrsa/rsa -pubout into keys/
+openssl genpkey -algorithm RSA -out keys/private.pem -pkeyopt rsa_keygen_bits:2048
+openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 # 3. Configure
 copy .env.example .env                       # defaults work for dev (SQLite)

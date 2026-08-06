@@ -10,7 +10,8 @@ py -m venv .venv && .venv\Scripts\activate      # Windows
 pip install -e ".[dev]"
 
 # Keys (RS256 JWT)
-py scripts/gen_keys.py                          # writes keys/private.pem + public.pem
+openssl genpkey -algorithm RSA -out keys/private.pem -pkeyopt rsa_keygen_bits:2048
+openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 
 # Config
 copy .env.example .env                          # dev defaults (SQLite) are fine
@@ -83,7 +84,7 @@ gated with `depends_on: condition: service_healthy`.
 | `no such column: audit_log.prev_hash` after restart | Dev DB not migrated. Stop server, `py -m alembic upgrade head` (stamp baseline first if needed), restart |
 | Rate-limit 429s in dev | Defaults are 100/min login, 30/min refresh. Fine for smoke; raise via `AUTH_LOGIN_RATE_LIMIT`/`AUTH_REFRESH_RATE_LIMIT` |
 | `D3_UNAVAILABLE` 503s | Downstream mock client failing or breaker open. Check `egress.d3.*` logs and `d5_d3_circuit_state` gauge (2=open); breaker resets after `D3_CIRCUIT_RESET_SEC` (30s) |
-| `presidio.unavailable` warning | presidio/spacy not installed in this env; PHI detection falls back to regex + fail-open alarm logs. Install with `pip install -e ".[full]"` (add extra) |
+| `presidio.unavailable` warning | presidio/spacy not installed in this env; PHI detection falls back to regex + fail-open alarm logs. Install with `pip install presidio-analyzer presidio-anonymizer spacy` + `py -m spacy download en_core_web_lg` |
 | Login slow (~100ms+) | argon2 verify is CPU-bound by design (see AUTH docs); runs off the event loop |
 | `audit/verify` reports broken chain | Data tampered or migration backfill mismatch; investigate the first broken entry id |
 | Test run touches dev DB | Tests are isolated to `d5_test.db` (see tests/conftest.py); delete it to force a clean slate |
