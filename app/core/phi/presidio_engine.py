@@ -263,10 +263,15 @@ def analyze_pii(text: str) -> list[PresidioFinding]:
         return findings
 
     except Exception as exc:  # pragma: no cover
-        logger.warning(
-            "presidio.analyze.error",
+        # PHI detection is fail-open: traffic continues, but this is an explicit
+        # alarm event that SIEM/monitoring must alert on (phi.detection.failed).
+        logger.error(
+            "phi.detection.failed",
+            fail_mode="fail_open",
+            layer="presidio.analyze",
+            error_class=type(exc).__name__,
             error=str(exc),
-            msg="Presidio analysis failed; returning empty findings",
+            msg="Presidio analysis failed; PHI detection degraded to empty findings",
         )
         return []
 

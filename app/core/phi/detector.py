@@ -129,8 +129,13 @@ def _presidio_detect(text: str) -> list[PHIFinding]:
             for pf in presidio_findings
         ]
     except Exception as exc:
-        logger.warning(
-            "detector.presidio.error",
+        # Fail-open: continue with regex-only results, but emit an explicit
+        # alarm event so monitoring can alert that PHI detection degraded.
+        logger.error(
+            "phi.detection.failed",
+            fail_mode="fail_open",
+            layer="detector.tier2",
+            error_class=type(exc).__name__,
             error=str(exc),
             msg="Presidio detection failed; falling back to regex only",
         )

@@ -113,3 +113,55 @@ def test_role_aware_masking_admin_bypasses():
 def test_clean_text_unchanged():
     text = "Compliance status: ACTIVE. All good."
     assert mask_phi(text) == text
+
+
+def test_presidio_failure_emits_alarm_and_fails_open(caplog, monkeypatch):
+    import logging
+    import re
+    import app.core.phi.presidio_engine as engine
+    from app.core.phi.masker import mask_phi
+
+    ansi = re.compile(r"\x1b\[[0-9;]*m")
+
+    def boom(text):
+        raise RuntimeError("presidio down")
+
+    monkeypatch.setattr(engine, "analyze_pii", boom)
+
+    with caplog.at_level(logging.ERROR):
+        findings = detect_phi("Patient John Smith, SSN: 123-45-6789")
+        assert isinstance(findings, list)
+        assert any(f.type == "ssn" for f in findings)
+        assert isinstance(mask_phi("Compliance for Marcus Webb", role="hr"), str)
+
+    alarm_events = [r for r in caplog.records if "phi.detection.failed" in r.getMessage()]
+    assert alarm_events, "expected phi.detection.failed alarm event"
+    text = ansi.sub("", alarm_events[0].getMessage())
+    assert "fail_mode=fail_open" in text
+    assert "layer=detector.tier2" in text
+    assert "error_class=RuntimeError" in text
+
+
+def test_presidio_analyze_failure_emits_alarm(caplog, monkeypatch):
+    import logging
+    import re
+    import app.core.phi.presidio_engine as engine
+
+    ansi = re.compile(r"\x1b\[[0-9;]*m")
+
+    monkeypatch.setattr(engine, "_PRESIDIO_AVAILABLE", True)
+
+    def boom():
+        raise RuntimeError("nlp model missing")
+
+    monkeypatch.setattr(engine, "_get_analyzer", boom)
+
+    with caplog.at_level(logging.ERROR):
+        findings = engine.analyze_pii("John Smith 123-45-6789")
+        assert findings == []
+
+    alarm_events = [r for r in caplog.records if "phi.detection.failed" in r.getMessage()]
+    assert alarm_events
+    text = ansi.sub("", alarm_events[0].getMessage())
+    assert "layer=presidio.analyze" in text
+    assert "fail_mode=fail_open" in text
