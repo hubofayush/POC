@@ -45,11 +45,13 @@ class Tracer:
         action: str,
         input_preview: str = "",
         trace_id: str | None = None,
+        org: str = "unknown",
     ) -> str:
         tid = trace_id or str(uuid4())
         self._traces[tid] = {
             "trace_id": tid,
             "user": user,
+            "org": org,
             "action": action,
             "input_preview": input_preview,
             "start_time": datetime.now(timezone.utc),
@@ -93,9 +95,11 @@ class Tracer:
         ]
         return formatted
 
-    def get_traces(self, limit: int = 10) -> list[dict]:
-        raw = list(self._traces.values())[-limit:]
-        return [self._format_trace(t) for t in raw]
+    def get_traces(self, limit: int = 10, org: str | None = None) -> list[dict]:
+        raw = list(self._traces.values())
+        if org:
+            raw = [t for t in raw if t.get("org") == org]
+        return [self._format_trace(t) for t in raw[-limit:]]
 
     def get_trace(self, trace_id: str) -> dict | None:
         raw = self._traces.get(trace_id)

@@ -8,6 +8,9 @@ ROLE_HIERARCHY = {
     "clinician":["clinician"]
 }
 
+# Roles that may access another org's data (admin only by default)
+_CROSS_ORG_ROLES = frozenset(["admin"])
+
 async def get_current_user(authorization: str | None = Header(None)) -> dict:
     """Extracts and verifies Bearer JWT from Authorization header."""
     if not authorization or not authorization.startswith("Bearer "):
@@ -28,10 +31,23 @@ def check_role(user: dict, allowed_roles: list[str]) -> None:
         )
 
 def check_org(user: dict, target_org: str | None) -> None:
-    if not target_org or user.get("role") == "admin":
+    """Enforce tenant isolation: non-admin users may only operate within their own org."""
+    if not target_org:
+        return
+    if user.get("role") in _CROSS_ORG_ROLES:
         return
     if user.get("org") != target_org:
         raise HTTPException(
             status_code = status.HTTP_403_FORBIDDEN,
             detail="Cross-Organization access Denied"
         )
+
+def require_org_scope(user: dict) -> str | None:
+    """
+    Returns the org the caller may access:
+    - admin → None (unrestricted)
+    - everyone else → their own org (used to scope queries)
+    """
+    if user.get("role") in _CROSS_ORG_ROLES:
+        return None
+    return user.get("org")

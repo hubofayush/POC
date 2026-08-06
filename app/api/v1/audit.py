@@ -2,11 +2,14 @@
 app.api.v1.audit
 ~~~~~~~~~~~~~~~~
 HTTP Router for Audit Log query and stats endpoints.
+
+Tenant isolation: non-admin callers are always scoped to their own org —
+any user_org filter they supply is overridden.
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from app.api.deps import require_roles
+from app.api.deps import require_roles, require_org_scope
 from app.core.audit import query_entries, get_stats
 
 router = APIRouter(prefix="/audit", tags=["audit"])
@@ -26,6 +29,11 @@ async def list_logs(
     offset: int = Query(0),
     user: dict = Depends(require_roles(["admin", "compliance_officer"])),
 ):
+    scope_org = require_org_scope(user)
+    if scope_org:
+        # Non-admin callers are locked to their own org
+        user_org = scope_org
+
     entries = await query_entries(
         user_id=user_id,
         user_org=user_org,
@@ -45,4 +53,4 @@ async def list_logs(
 async def audit_stats(
     user: dict = Depends(require_roles(["admin", "compliance_officer"])),
 ):
-    return await get_stats()
+    return await get_stats(org=require_org_scope(user))

@@ -15,6 +15,7 @@ from app.core.phi.masker import mask_phi
 from app.core.tracing import tracer
 from app.core.audit import log_entry
 from app.core.logging import get_logger
+from app.core.security.rbac import check_org
 from app.integrations.d3_client import d3_client
 from app.services.ingress import run_ingress_guardrails
 from app.services.egress import verify_citations, filter_by_role
@@ -33,12 +34,16 @@ async def process_invoke(
     input_bytes = len(request.input.encode("utf-8"))
     user_org = user.get("org", "unknown")
 
+    # --- TENANT ISOLATION: context-supplied org must match the JWT org ---
+    check_org(user, request.context.get("org"))
+
     # --- INITIALIZE TRACE ---
     tracer.create_trace(
         user=user["sub"],
         action="invoke",
         input_preview=request.input[:100],
         trace_id=trace_id,
+        org=user_org,
     )
 
     # --- INGRESS GUARDRAILS (5-Layer Pipeline) ---

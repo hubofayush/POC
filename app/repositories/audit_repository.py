@@ -121,20 +121,32 @@ class AuditRepository:
             result = await session.execute(stmt)
             return result.scalars().all()
 
-    async def get_summary_stats(self) -> dict[str, Any]:
-        """Calculate production-grade audit summary statistics."""
+    async def get_summary_stats(self, org: str | None = None) -> dict[str, Any]:
+        """Calculate production-grade audit summary statistics (optionally org-scoped)."""
+        org_filter = (AuditEntry.user_org == org,) if org else ()
+
         async with async_session() as session:
-            total = await session.scalar(select(func.count(AuditEntry.entry_id)))
+            total = await session.scalar(
+                select(func.count(AuditEntry.entry_id)).where(*org_filter)
+            )
             success = await session.scalar(
-                select(func.count(AuditEntry.entry_id)).where(AuditEntry.status == "success")
+                select(func.count(AuditEntry.entry_id)).where(
+                    AuditEntry.status == "success", *org_filter
+                )
             )
             blocked = await session.scalar(
-                select(func.count(AuditEntry.entry_id)).where(AuditEntry.status == "block")
+                select(func.count(AuditEntry.entry_id)).where(
+                    AuditEntry.status == "block", *org_filter
+                )
             )
             phi = await session.scalar(
-                select(func.count(AuditEntry.entry_id)).where(AuditEntry.phi_accessed == True)
+                select(func.count(AuditEntry.entry_id)).where(
+                    AuditEntry.phi_accessed == True, *org_filter
+                )
             )
-            avg_latency = await session.scalar(select(func.avg(AuditEntry.latency_ms))) or 0.0
+            avg_latency = await session.scalar(
+                select(func.avg(AuditEntry.latency_ms)).where(*org_filter)
+            ) or 0.0
 
             return {
                 "total_entries": total or 0,

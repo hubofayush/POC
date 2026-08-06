@@ -119,6 +119,6 @@ async def query_entries(
     )
 
 
-async def get_stats() -> dict[str, Any]:
-    """Get audit summary statistics via AuditRepository."""
-    return await audit_repository.get_summary_stats()
+async def get_stats(org: str | None = None) -> dict[str, Any]:
+    """Get audit summary statistics via AuditRepository (optionally org-scoped)."""
+    return await audit_repository.get_summary_stats(org=org)
