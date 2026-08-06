@@ -1,11 +1,11 @@
 # GSD STATE
 
-Phase: 3 of 5 (Observability & Ops)
-Plan: 03-01 of 1 (metrics, probes, proxy-aware rate limits, docker hardening, request logging)
-Status: Plan 03-01 COMPLETE — awaiting checkpoint approval
-Last activity: 2026-08-06 - Plan 03-01 executed (6 commits, all waves green)
+Phase: 4 of 5 (CI Gates & Docs)
+Plan: 04-01 of 1 (CI workflow, ruff/mypy, lock file, README/runbook/ops docs, postman/.env sync)
+Status: Plan 04-01 IN PROGRESS — Wave 0.1 complete
+Last activity: 2026-08-06 - Plan 04-01 started (Phase 3 checkpoint approved)
 
-Progress: ████████████████████ 100% (plan 03-01)
+Progress: ██████░░░░░░░░░░░░░░ 10% (plan 04-01)
 
 ## Decisions
 | Date | Decision |
@@ -20,13 +20,13 @@ Progress: ████████████████████ 100% (pla
 | 2026-08-06 | Rate limits key on X-Forwarded-For when TRUST_PROXY_COUNT > 0 (fallback to socket addr) |
 | 2026-08-06 | Docker: non-root appuser, healthchecks, restart policy, no .env COPY; build verification deferred |
 | 2026-08-06 | Access logging: http.request INFO / http.request.error for >=500; probes+metrics excluded |
+| 2026-08-06 | Quality gates: ruff + mypy (py312 target) + pytest in CI; requirements.lock from pip freeze |
 
 ## Issues / Blockers
-- Docker CLI unavailable in this environment — Dockerfile/compose changes are config-only; build verification deferred to a machine with Docker
-- Dev DB migrated in place (stamp 581448aea3b8 + upgrade head)
-- Chain lock and breaker are single-process designs; distributed equivalents documented (Postgres advisory lock / shared breaker store)
+- No docker CLI and no GitHub runner here — CI workflow is yaml-validated only; docker build verification deferred
+- mypy scope may need module exclusions if legacy code is too untyped — documented in config
 
 ## Session Continuity
 Last session: 2026-08-06
-Stopped at: Plan 03-01 complete — checkpoint pending approval (6 commits: baba3e2..ec21d54)
-Resume file: .planning/phases/03-observability/03-01-PLAN.md
+Stopped at: Plan 04-01 wave 0.1 (plan committed); waves 1-4 pending
+Resume file: .planning/phases/04-ci-and-docs/04-01-PLAN.md
