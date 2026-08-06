@@ -127,7 +127,7 @@ async def test_traces_scoped_for_compliance(client):
 
     # compliance officer cannot read another org's trace by id
     other_trace = next(
-        t for t in tracer.get_traces(limit=100) if t["org"] == "org_beta"
+        t for t in await tracer.get_traces(limit=100) if t["org"] == "org_beta"
     )
     resp = await client.get(
         f"/traces/{other_trace['trace_id']}",

@@ -38,7 +38,7 @@ async def process_invoke(
     check_org(user, request.context.get("org"))
 
     # --- INITIALIZE TRACE ---
-    tracer.create_trace(
+    await tracer.create_trace(
         user=user["sub"],
         action="invoke",
         input_preview=request.input[:100],
@@ -57,7 +57,7 @@ async def process_invoke(
         context_keys=list(request.context.keys()),
     )
 
-    guardrail_span = tracer.create_span(trace_id, "ingress_guardrails_pipeline")
+    guardrail_span = await tracer.create_span(trace_id, "ingress_guardrails_pipeline")
     try:
         await run_ingress_guardrails(
             input_text=request.input,
@@ -67,10 +67,10 @@ async def process_invoke(
             client_ip=client_ip,
             user_agent=user_agent,
         )
-        tracer.end_span(guardrail_span, {"status": "passed"})
+        await tracer.end_span(guardrail_span, {"status": "passed"})
     except Exception as exc:
-        tracer.end_span(guardrail_span, {"status": "blocked", "error": str(exc)})
-        tracer.end_trace(trace_id, status="blocked", metadata={"error": str(exc)})
+        await tracer.end_span(guardrail_span, {"status": "blocked", "error": str(exc)})
+        await tracer.end_trace(trace_id, status="blocked", metadata={"error": str(exc)})
         raise
 
     logger.info("ingress.guardrails.passed", trace_id=trace_id)
@@ -106,13 +106,13 @@ async def process_invoke(
 
     logger.info("d3.call", trace_id=trace_id, payload=d3_payload)
 
-    d3_span = tracer.create_span(trace_id, "d3_client_execution")
+    d3_span = await tracer.create_span(trace_id, "d3_client_execution")
     d3_resp = await d3_client.call_invoke(
         trace_id=trace_id,
         input=safe_input,
         context=request.context,
     )
-    tracer.end_span(d3_span, {"tier": d3_resp.get("tier", "unknown")})
+    await tracer.end_span(d3_span, {"tier": d3_resp.get("tier", "unknown")})
 
     logger.info(
         "d3.response",
@@ -175,7 +175,7 @@ async def process_invoke(
     logger.info("audit.logged", audit_id=audit_id, trace_id=trace_id)
 
     # --- CLOSE TRACE SUCCESSFULLY ---
-    tracer.end_trace(
+    await tracer.end_trace(
         trace_id,
         status="success",
         metadata={

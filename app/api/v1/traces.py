@@ -10,7 +10,7 @@ async def list_traces(
     limit: int = Query(10, le=100),
     user: dict = Depends(require_roles(["admin", "compliance_officer"])),
 ):
-    return {"traces": tracer.get_traces(limit=limit, org=require_org_scope(user))}
+    return {"traces": await tracer.get_traces(limit=limit, org=require_org_scope(user))}
 
 
 @router.get("/{trace_id}")
@@ -18,7 +18,7 @@ async def get_trace(
     trace_id: str,
     user: dict = Depends(require_roles(["admin", "compliance_officer"])),
 ):
-    trace = tracer.get_trace(trace_id)
+    trace = await tracer.get_trace(trace_id)
     if not trace:
         raise HTTPException(status_code=404, detail="Trace not found")
     scope_org = require_org_scope(user)

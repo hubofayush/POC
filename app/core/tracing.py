@@ -2,12 +2,17 @@
 app.core.tracing
 ~~~~~~~~~~~~~~~~
 Distributed Tracing Engine & Telemetry Spans.
+
+Traces and spans are persisted to the database via TraceRepository so they
+survive process restarts and can be queried by the API.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
+
+from app.repositories.trace_repository import trace_repository
 
 
 class Span:
@@ -35,11 +40,42 @@ class Span:
         }
 
 
-class Tracer:
-    def __init__(self):
-        self._traces: dict[str, dict[str, Any]] = {}
+def _trace_to_dict(trace) -> dict[str, Any]:
+    spans = []
+    if trace.spans_json:
+        spans = json_loads(trace.spans_json)
+    metadata = {}
+    if trace.metadata_json:
+        metadata = json_loads(trace.metadata_json)
+    return {
+        "trace_id": trace.trace_id,
+        "user": trace.user_id,
+        "org": trace.org,
+        "action": trace.action,
+        "input_preview": trace.input_preview,
+        "start_time": _iso(trace.start_time),
+        "end_time": _iso(trace.end_time) if trace.end_time else None,
+        "status": trace.status,
+        "metadata": metadata,
+        "spans": spans,
+    }
 
-    def create_trace(
+
+def _iso(dt: datetime) -> str:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
+def json_loads(raw: str) -> Any:
+    import json
+    return json.loads(raw or "{}")
+
+
+class Tracer:
+    """Async facade over the persisted trace store."""
+
+    async def create_trace(
         self,
         user: str,
         action: str,
@@ -48,62 +84,44 @@ class Tracer:
         org: str = "unknown",
     ) -> str:
         tid = trace_id or str(uuid4())
-        self._traces[tid] = {
-            "trace_id": tid,
-            "user": user,
-            "org": org,
-            "action": action,
-            "input_preview": input_preview,
-            "start_time": datetime.now(timezone.utc),
-            "end_time": None,
-            "spans": [],
-            "status": "pending",
-            "metadata": {},
-        }
+        await trace_repository.create_trace(
+            trace_id=tid,
+            user_id=user,
+            action=action,
+            org=org,
+            input_preview=input_preview,
+        )
         return tid
 
-    def create_span(self, trace_id: str, name: str, parent_span_id: str = "") -> str:
+    async def create_span(self, trace_id: str, name: str, parent_span_id: str = "") -> str:
         span = Span(str(uuid4()), name, parent_span_id)
-        trace = self._traces.get(trace_id)
-        if trace:
-            trace["spans"].append(span)
+        await trace_repository.add_span(trace_id, span.to_dict())
         return span.span_id
 
-    def end_span(self, span_id: str, metadata: dict[str, Any] | None = None):
-        for trace in self._traces.values():
-            for span in trace["spans"]:
-                if span.span_id == span_id:
-                    span.close(metadata)
+    async def end_span(self, span_id: str, metadata: dict[str, Any] | None = None):
+        # Spans live on the trace row; find the owning trace (bounded scan of
+        # recent traces — an index on span ids is needed at scale) and close
+        # the span in place.
+        for trace in await trace_repository.list_traces(limit=200):
+            spans = json_loads(trace.spans_json) if trace.spans_json else []
+            for span in spans:
+                if span.get("span_id") == span_id:
+                    span["end_time"] = datetime.now(timezone.utc).isoformat()
+                    if metadata:
+                        span["metadata"] = metadata
+                    await trace_repository.update_span(trace.trace_id, span)
                     return
 
-    def end_trace(self, trace_id: str, status: str = "success", metadata: dict[str, Any] | None = None):
-        trace = self._traces.get(trace_id)
-        if trace:
-            trace["end_time"] = datetime.now(timezone.utc)
-            trace["status"] = status
-            if metadata:
-                trace["metadata"] = metadata
+    async def end_trace(self, trace_id: str, status: str = "success", metadata: dict[str, Any] | None = None):
+        await trace_repository.end_trace(trace_id, status=status, metadata=metadata)
 
-    def _format_trace(self, trace: dict[str, Any]) -> dict[str, Any]:
-        formatted = dict(trace)
-        if isinstance(formatted.get("start_time"), datetime):
-            formatted["start_time"] = formatted["start_time"].isoformat()
-        if isinstance(formatted.get("end_time"), datetime):
-            formatted["end_time"] = formatted["end_time"].isoformat()
-        formatted["spans"] = [
-            s.to_dict() if isinstance(s, Span) else s for s in formatted.get("spans", [])
-        ]
-        return formatted
+    async def get_traces(self, limit: int = 10, org: str | None = None) -> list[dict]:
+        traces = await trace_repository.list_traces(limit=limit, org=org)
+        return [_trace_to_dict(t) for t in traces]
 
-    def get_traces(self, limit: int = 10, org: str | None = None) -> list[dict]:
-        raw = list(self._traces.values())
-        if org:
-            raw = [t for t in raw if t.get("org") == org]
-        return [self._format_trace(t) for t in raw[-limit:]]
-
-    def get_trace(self, trace_id: str) -> dict | None:
-        raw = self._traces.get(trace_id)
-        return self._format_trace(raw) if raw else None
+    async def get_trace(self, trace_id: str) -> dict | None:
+        trace = await trace_repository.get_trace(trace_id)
+        return _trace_to_dict(trace) if trace else None
 
 
 tracer = Tracer()
