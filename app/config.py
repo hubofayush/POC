@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     AUTH_LOGIN_RATE_LIMIT: str = "100/minute"
     AUTH_REFRESH_RATE_LIMIT: str = "30/minute"
 
+    # Number of trusted reverse proxies in front of the gateway (0 = direct).
+    # When > 0, rate limits key on the real client IP from X-Forwarded-For.
+    TRUST_PROXY_COUNT: int = 0
+
     # LangSmith (set in .env to enable)
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "d5-poc"
