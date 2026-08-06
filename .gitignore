@@ -25,3 +25,4 @@ htmlcov/
 # Logs
 audit.log
 *.log
+d5_test.db
