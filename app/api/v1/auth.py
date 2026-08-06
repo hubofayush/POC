@@ -6,6 +6,7 @@ login (argon2 + lockout), refresh (rotation + reuse detection), logout, me.
 """
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -72,7 +73,7 @@ async def login(request: Request, body: LoginRequest):
 
     if user is None:
         # Burn comparable time to defeat username enumeration via timing
-        dummy_verify(body.password)
+        await asyncio.to_thread(dummy_verify, body.password)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if not user.is_active:
@@ -84,7 +85,8 @@ async def login(request: Request, body: LoginRequest):
             detail="Account temporarily locked due to too many failed attempts",
         )
 
-    if not verify_password(body.password, user.password_hash):
+    # argon2 verify is CPU-bound; run off the event loop
+    if not await asyncio.to_thread(verify_password, body.password, user.password_hash):
         await auth_repository.record_login_failure(user)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 

@@ -6,6 +6,7 @@ egress policy filtering, production audit logging, and trace span recording.
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 from uuid import uuid4
@@ -81,15 +82,19 @@ async def process_invoke(
     requires_phi = request.context.get("requires_phi", True)
     user_role = user.get("role", "hr")
 
+    async def _mask(text: str) -> str:
+        # Regex + Presidio NLP masking is CPU-bound; run off the event loop
+        return await asyncio.to_thread(mask_phi, text, "hr")
+
     if requires_phi:
         # Masking ON
-        safe_input = mask_phi(request.input, role="hr")
+        safe_input = await _mask(request.input)
     else:
         # Masking OFF for authorized roles
         if user_role in ("admin", "compliance_officer"):
             safe_input = request.input
         else:
-            safe_input = mask_phi(request.input, role="hr")
+            safe_input = await _mask(request.input)
 
     logger.info(
         "ingress.phi_masked",
@@ -124,12 +129,12 @@ async def process_invoke(
 
     # --- EGRESS PHI MASKING ---
     if requires_phi:
-        raw_output = mask_phi(d3_resp["output"], role="hr")
+        raw_output = await _mask(d3_resp["output"])
     else:
         if user_role in ("admin", "compliance_officer"):
             raw_output = d3_resp["output"]
         else:
-            raw_output = mask_phi(d3_resp["output"], role="hr")
+            raw_output = await _mask(d3_resp["output"])
 
     safe_output = filter_by_role(raw_output, user_role)
     citations = verify_citations(safe_output, d3_resp.get("citations", []))
