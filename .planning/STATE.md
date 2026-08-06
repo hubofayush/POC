@@ -2,10 +2,10 @@
 
 Phase: 5 of 5 (Production Polish & E2E Verification)
 Plan: 05-01 of 1 (secrets hygiene, deployment runbook, audit walkthrough, final verification)
-Status: Plan 05-01 IN PROGRESS — Wave 0.1 complete
-Last activity: 2026-08-06 - Plan 05-01 started (Phase 4 checkpoint approved)
+Status: Plan 05-01 COMPLETE — **PROJECT COMPLETE (all 5 phases delivered)**
+Last activity: 2026-08-06 - Plan 05-01 finished (secrets, deployment runbook, E2E audit walkthrough passing)
 
-Progress: ████░░░░░░░░░░░░░░░░ 5% (plan 05-01)
+Progress: ████████████████████ 100% (plan 05-01) — project 100%
 
 ## Decisions
 | Date | Decision |
@@ -22,13 +22,15 @@ Progress: ████░░░░░░░░░░░░░░░░ 5% (plan 
 | 2026-08-06 | Access logging: http.request INFO / http.request.error for >=500; probes+metrics excluded |
 | 2026-08-06 | Quality gates: ruff + mypy (py312 target) + pytest in CI; requirements.lock from pip freeze |
 | 2026-08-06 | Postman collection rewritten (3 folders, 26 requests) — stale `user_id` login body fixed; env template synced 1:1 with settings |
+| 2026-08-06 | Compose secrets: POSTGRES_PASSWORD via ${...:?} interpolation (fail-fast); scripts/ copied into image; git secrets audit clean |
+| 2026-08-06 | Deployment runbook (docs/DEPLOYMENT.md): keys, migrations, backup/restore, upgrade/rollback, TLS, hardening checklist |
+| 2026-08-06 | E2E audit walkthrough (scripts/audit_walkthrough.py): audit entries ↔ traces ↔ metrics cross-check + chain verify; passes live |
 
 ## Issues / Blockers
 - No docker CLI and no GitHub runner here — CI workflow is yaml-validated only; docker build verification deferred
 - CI will first really run on first push to GitHub (workflow yaml validated with pyyaml only)
-- Phase 5 (final) remains: production polish — deploy docs, secrets hygiene, end-to-end audit walkthrough
+- Operator-owned items documented for production: TLS at proxy, real LLM/presidio keys, backup cron, periodic /audit/verify alerting
 
 ## Session Continuity
-Last session: 2026-08-06
-Stopped at: Plan 04-01 COMPLETE (checkpoint awaiting approval); Phase 5 (final) pending
-Resume file: .planning/phases/04-ci-and-docs/04-01-SUMMARY.md
+Project COMPLETE — all 5 phases delivered, checkpoint reports submitted per phase.
+Resume file: .planning/phases/05-production-polish/05-01-SUMMARY.md
