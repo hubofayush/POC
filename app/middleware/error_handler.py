@@ -10,6 +10,31 @@ logger = structlog.get_logger(__name__)
 # HTTP status codes to use per guardrail code prefix
 _CONSENT_CODES = frozenset(["CONSENT_DENIED", "PHI_ACCESS_DENIED"])
 
+# Detail keys that expose internal detection logic — never sent to clients.
+_INTERNAL_DETAIL_KEYS = frozenset(
+    [
+        "matched_pattern",
+        "decoded_preview",
+        "encoding",
+        "key_path",
+    ]
+)
+
+_MAX_DETAIL_VALUE_CHARS = 200
+
+
+def _sanitize_details(details: dict) -> dict:
+    """Return a client-safe copy of guardrail details (no internals, capped size)."""
+    safe: dict = {}
+    for key, value in details.items():
+        if key in _INTERNAL_DETAIL_KEYS:
+            continue
+        if isinstance(value, str):
+            if len(value) > _MAX_DETAIL_VALUE_CHARS:
+                value = value[:_MAX_DETAIL_VALUE_CHARS] + "..."
+        safe[key] = value
+    return safe
+
 def register_error_handlers(app: FastAPI):
     @app.exception_handler(StarletteHTTPException)
     async def http_exc_handler(request: Request, exc: StarletteHTTPException):
@@ -47,11 +72,11 @@ def register_error_handlers(app: FastAPI):
                 "detail": result.message,
                 "instance": str(request.url),
                 "extensions": {
-                    "guardrail": result.name if hasattr(result, "name") else result.layer.split(".")[-1],
+                    "guardrail": result.layer.split(".")[-1],
                     "code": result.code,
                     "layer": result.layer,
                     "trace_id": exc.trace_id,
-                    "details": result.details,
+                    "details": _sanitize_details(result.details),
                 },
             },
         )
