@@ -9,6 +9,13 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U d5 -d d5"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
   app:
     build: .
@@ -18,10 +25,20 @@ services:
       DATABASE_URL: postgresql+asyncpg://d5:d5_secret@db:5432/d5
       JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
       JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
+      DB_AUTO_CREATE: "false"
+      TRUST_PROXY_COUNT: "1"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ./keys:/app/keys
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=4).status == 200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
 
 volumes:
   pgdata:
