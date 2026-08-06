@@ -20,6 +20,14 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _canonical_ts(ts) -> str:
+    """Must mirror app.repositories.audit_repository._canonical_ts exactly,
+    otherwise chained hashes produced here can never verify at runtime."""
+    if getattr(ts, "tzinfo", None) is not None:
+        ts = ts.astimezone(__import__("datetime").timezone.utc).replace(tzinfo=None)
+    return ts.strftime("%Y-%m-%dT%H:%M:%S.%f")
+
+
 def _chain_hash(prev_hash: str, entry_id: str, user_id: str, action: str,
                 status: str, timestamp: str, details: str) -> str:
     raw = f"{prev_hash}|{entry_id}|{user_id}|{action}|{status}|{timestamp}|{details}"
@@ -62,7 +70,7 @@ def upgrade() -> None:
             row["user_id"],
             row["action"],
             row["status"],
-            str(row["timestamp"]),
+            _canonical_ts(row["timestamp"]),
             row["details"] or "",
         )
         conn.execute(

@@ -122,3 +122,8 @@ async def query_entries(
 async def get_stats(org: str | None = None) -> dict[str, Any]:
     """Get audit summary statistics via AuditRepository (optionally org-scoped)."""
     return await audit_repository.get_summary_stats(org=org)
+
+
+async def verify_chain() -> dict[str, Any]:
+    """Replay the audit hash chain and report integrity."""
+    return await audit_repository.verify_chain()

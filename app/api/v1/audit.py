@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 from app.api.deps import require_roles, require_org_scope
-from app.core.audit import query_entries, get_stats
+from app.core.audit import query_entries, get_stats, verify_chain
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
@@ -54,3 +54,11 @@ async def audit_stats(
     user: dict = Depends(require_roles(["admin", "compliance_officer"])),
 ):
     return await get_stats(org=require_org_scope(user))
+
+
+@router.get("/verify")
+async def audit_verify(
+    user: dict = Depends(require_roles(["admin"])),
+):
+    """Replay the hash chain to detect tampering. Admin only — cross-org by nature."""
+    return await verify_chain()
