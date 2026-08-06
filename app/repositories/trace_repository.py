@@ -6,10 +6,11 @@ Persistence for distributed traces (spans embedded as JSON on the trace row).
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Any, Sequence
-from sqlalchemy import select, desc
-from sqlalchemy.ext.asyncio import AsyncSession
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
+
+from sqlalchemy import desc, select
 
 from app.models.database import Trace, async_session
 
@@ -31,7 +32,7 @@ class TraceRepository:
                     org=org,
                     action=action,
                     input_preview=input_preview,
-                    start_time=datetime.now(timezone.utc),
+                    start_time=datetime.now(UTC),
                 )
             )
             await session.commit()
@@ -80,7 +81,7 @@ class TraceRepository:
             if trace is None:
                 return
             trace.status = status
-            trace.end_time = datetime.now(timezone.utc)
+            trace.end_time = datetime.now(UTC)
             trace.metadata_json = json.dumps(metadata or {})
             await session.commit()
 

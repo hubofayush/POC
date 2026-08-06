@@ -5,7 +5,8 @@ FastAPI Route Dependencies (JWT Authentication & Role Requirements).
 """
 from __future__ import annotations
 
-from fastapi import Header, HTTPException, status, Depends
+from fastapi import Depends, Header, HTTPException, status
+
 from app.core.security.auth import decode_token
 from app.core.security.rbac import check_role, require_org_scope
 

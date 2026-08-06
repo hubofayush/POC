@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 from app.config import settings
 from app.core.logging import get_logger
@@ -150,7 +150,7 @@ class D3Client:
                     error=str(exc),
                     msg="D3 provider error",
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = TimeoutError(
                     f"D3 call timed out after {settings.D3_TIMEOUT_SEC}s"
                 )

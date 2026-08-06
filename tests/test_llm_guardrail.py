@@ -11,9 +11,7 @@ import httpx
 import pytest
 
 from app.config import settings
-from app.core.guardrails.base import GuardrailException
 from app.core.guardrails.layer5_llm import LLMEvaluatorGuard
-
 
 ADMIN_USER = {"sub": "admin_01", "role": "admin", "org": "test_org"}
 CLEAN_CONTEXT = {"consent_granted": True}

@@ -1,4 +1,5 @@
 import pytest
+
 from app.core.tracing import tracer
 
 

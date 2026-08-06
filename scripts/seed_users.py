@@ -12,9 +12,9 @@ import os
 
 from sqlalchemy import select
 
-from app.models.database import async_session, create_tables, User
 from app.core.security.passwords import hash_password
-from app.repositories.auth_repository import ensure_demo_users, _DEMO_USERS
+from app.models.database import User, async_session, create_tables
+from app.repositories.auth_repository import _DEMO_USERS, ensure_demo_users
 
 
 async def seed() -> None:

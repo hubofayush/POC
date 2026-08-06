@@ -15,8 +15,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.config import settings
-from app.core.guardrails.base import BaseGuardrail, GuardrailResult, PASS
-
+from app.core.guardrails.base import PASS, BaseGuardrail, GuardrailResult
 
 # ---------------------------------------------------------------------------
 # Per-role character budgets

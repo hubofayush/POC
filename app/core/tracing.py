@@ -8,7 +8,7 @@ survive process restarts and can be queried by the API.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -20,12 +20,12 @@ class Span:
         self.span_id = span_id
         self.name = name
         self.parent_span_id = parent_span_id
-        self.start_time = datetime.now(timezone.utc)
+        self.start_time = datetime.now(UTC)
         self.end_time: datetime | None = None
         self.metadata: dict[str, Any] = {}
 
     def close(self, metadata: dict[str, Any] | None = None):
-        self.end_time = datetime.now(timezone.utc)
+        self.end_time = datetime.now(UTC)
         if metadata:
             self.metadata = metadata
 
@@ -63,7 +63,7 @@ def _trace_to_dict(trace) -> dict[str, Any]:
 
 def _iso(dt: datetime) -> str:
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.isoformat()
 
 
@@ -106,7 +106,7 @@ class Tracer:
             spans = json_loads(trace.spans_json) if trace.spans_json else []
             for span in spans:
                 if span.get("span_id") == span_id:
-                    span["end_time"] = datetime.now(timezone.utc).isoformat()
+                    span["end_time"] = datetime.now(UTC).isoformat()
                     if metadata:
                         span["metadata"] = metadata
                     await trace_repository.update_span(trace.trace_id, span)

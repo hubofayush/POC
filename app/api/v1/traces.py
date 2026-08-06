@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from app.api.deps import require_roles, require_org_scope
+
+from app.api.deps import require_org_scope, require_roles
 from app.core.tracing import tracer
 
 router = APIRouter(prefix="/traces", tags=["traces"])

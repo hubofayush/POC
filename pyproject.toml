@@ -37,6 +37,8 @@ dev = [
     "pytest-asyncio>=0.25.0",
     "pytest-cov>=6.0.0",
     "httpx>=0.28.0",
+    "ruff>=0.16.0",
+    "mypy>=1.18.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -45,3 +47,33 @@ include = ["app*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "RUF", "FURB", "PLR0402"]
+ignore = [
+    "B008",     # FastAPI dependency-injection defaults (Depends(...)) are intentional
+    "BLE001",   # broad except is deliberate at pipeline/egress/PHI boundaries
+    "B017",     # assertRaises without match is fine in these tests
+    "TRY004",   # no try/except-pattern policy
+    "ASYNC221", # no subprocess usage in app code
+    "RUF001",   # ambiguous unicode arrows in docstrings are intentional
+    "RUF002",
+    "RUF003",
+    "RUF012",   # mutable class attrs (SQLAlchemy patterns)
+    "RUF022",   # __all__ ordering is not a project concern
+    "SIM102",   # collapsible-if readability preference
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/main.py" = ["E402"]     # router imports intentionally after app construction
+"tests/conftest.py" = ["E402"]  # env must be set before app imports
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = false
+exclude = ["scripts/"]

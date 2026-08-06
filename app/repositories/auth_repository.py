@@ -5,13 +5,13 @@ DAO for users and refresh-token registry (rotation, reuse detection, lockout).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
 
 from app.config import settings
-from app.models.database import User, RefreshToken, async_session
 from app.core.security.passwords import hash_password
+from app.models.database import RefreshToken, User, async_session
 
 
 class AuthRepository:
@@ -32,7 +32,7 @@ class AuthRepository:
             failed = user.failed_attempts + 1
             locked_until = None
             if failed >= settings.AUTH_MAX_FAILED_ATTEMPTS:
-                locked_until = datetime.now(timezone.utc) + timedelta(
+                locked_until = datetime.now(UTC) + timedelta(
                     minutes=settings.AUTH_LOCKOUT_MINUTES
                 )
             await session.execute(
@@ -48,7 +48,7 @@ class AuthRepository:
             await session.execute(
                 update(User)
                 .where(User.id == user.id)
-                .values(failed_attempts=0, last_login_at=datetime.now(timezone.utc))
+                .values(failed_attempts=0, last_login_at=datetime.now(UTC))
             )
             await session.commit()
 
@@ -88,7 +88,7 @@ class AuthRepository:
                 update(RefreshToken)
                 .where(RefreshToken.jti == jti)
                 .values(
-                    revoked_at=datetime.now(timezone.utc),
+                    revoked_at=datetime.now(UTC),
                     replaced_by_jti=replaced_by_jti,
                 )
             )
@@ -100,7 +100,7 @@ class AuthRepository:
             await session.execute(
                 update(RefreshToken)
                 .where(RefreshToken.family_id == family_id, RefreshToken.revoked_at.is_(None))
-                .values(revoked_at=datetime.now(timezone.utc))
+                .values(revoked_at=datetime.now(UTC))
             )
             await session.commit()
 

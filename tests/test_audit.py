@@ -4,9 +4,10 @@ tests/test_audit.py
 Unit & integration tests for Production-Grade Audit System (SOC2 / HIPAA Standard).
 """
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
+from app.core.audit import get_stats, log_entry, query_entries
 from app.main import app
-from app.core.audit import log_entry, query_entries, get_stats
 
 
 @pytest.fixture

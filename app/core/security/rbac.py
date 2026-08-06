@@ -1,4 +1,5 @@
-from fastapi import HTTPException, status, Depends, Header
+from fastapi import Header, HTTPException, status
+
 from app.core.security.auth import decode_token
 
 ROLE_HIERARCHY = {

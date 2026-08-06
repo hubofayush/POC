@@ -1,7 +1,7 @@
-from fastapi import Request, FastAPI
+import structlog
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-import structlog
 
 from app.core.guardrails.base import GuardrailException
 

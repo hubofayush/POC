@@ -7,23 +7,22 @@ login (argon2 + lockout), refresh (rotation + reuse detection), logout, me.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, status, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from app.api.deps import get_current_user
 from app.config import settings
-from app.middleware.rate_limit import limiter
-
 from app.core.security.auth import (
     create_token,
     decode_token,
     hash_refresh_token,
 )
 from app.core.security.passwords import dummy_verify, verify_password
+from app.middleware.rate_limit import limiter
 from app.repositories.auth_repository import auth_repository
-from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -31,7 +30,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 def _ensure_aware(dt: datetime | None) -> datetime | None:
     """SQLite returns naive datetimes — normalize to UTC-aware."""
     if dt is not None and dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -61,7 +60,7 @@ async def _issue_token_pair(user_id: str, role: str, org: str) -> TokenResponse:
         user_id=user_id,
         token_hash=hash_refresh_token(refresh),
         family_id=str(uuid4()),
-        expires_at=datetime.fromtimestamp(payload["exp"], tz=timezone.utc),
+        expires_at=datetime.fromtimestamp(payload["exp"], tz=UTC),
     )
     return TokenResponse(access_token=access, refresh_token=refresh)
 
@@ -79,7 +78,8 @@ async def login(request: Request, body: LoginRequest):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account disabled")
 
-    if _ensure_aware(user.locked_until) and _ensure_aware(user.locked_until) > datetime.now(timezone.utc):
+    locked_until = _ensure_aware(user.locked_until)
+    if locked_until is not None and locked_until > datetime.now(UTC):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account temporarily locked due to too many failed attempts",
@@ -118,7 +118,7 @@ async def refresh(request: Request, body: RefreshRequest):
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token reuse detected"
         )
 
-    if datetime.fromtimestamp(payload["exp"], tz=timezone.utc) < datetime.now(timezone.utc):
+    if datetime.fromtimestamp(payload["exp"], tz=UTC) < datetime.now(UTC):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired"
         )
@@ -136,7 +136,7 @@ async def refresh(request: Request, body: RefreshRequest):
         user_id=record.user_id,
         token_hash=hash_refresh_token(refresh),
         family_id=record.family_id,
-        expires_at=datetime.fromtimestamp(new_payload["exp"], tz=timezone.utc),
+        expires_at=datetime.fromtimestamp(new_payload["exp"], tz=UTC),
     )
     return TokenResponse(access_token=access, refresh_token=refresh)
 

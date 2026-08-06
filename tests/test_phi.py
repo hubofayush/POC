@@ -3,7 +3,6 @@ tests/test_phi.py
 ~~~~~~~~~~~~~~~~~~
 Comprehensive unit tests for the Production HIPAA 18 PHI/PII Detection and Masking engine.
 """
-import pytest
 from app.core.phi.detector import detect_phi
 from app.core.phi.masker import mask_phi, smart_mask
 
@@ -118,6 +117,7 @@ def test_clean_text_unchanged():
 def test_presidio_failure_emits_alarm_and_fails_open(caplog, monkeypatch):
     import logging
     import re
+
     import app.core.phi.presidio_engine as engine
     from app.core.phi.masker import mask_phi
 
@@ -145,6 +145,7 @@ def test_presidio_failure_emits_alarm_and_fails_open(caplog, monkeypatch):
 def test_presidio_analyze_failure_emits_alarm(caplog, monkeypatch):
     import logging
     import re
+
     import app.core.phi.presidio_engine as engine
 
     ansi = re.compile(r"\x1b\[[0-9;]*m")

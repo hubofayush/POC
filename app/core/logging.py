@@ -1,5 +1,6 @@
-import structlog
 import os
+
+import structlog
 
 DEV = os.getenv("DEV", "true").lower() == "true"
 

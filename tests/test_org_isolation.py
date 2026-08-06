@@ -2,10 +2,11 @@
 Tenant isolation tests: org scoping of audit/traces and context.org enforcement.
 """
 import pytest
-from httpx import AsyncClient, ASGITransport
-from app.main import app
+from httpx import ASGITransport, AsyncClient
+
 from app.core.audit import log_entry
 from app.core.security.passwords import hash_password
+from app.main import app
 from app.models.database import User, async_session
 
 
@@ -101,9 +102,9 @@ async def test_invoke_accepts_matching_org_context(client):
 
 @pytest.mark.asyncio
 async def test_traces_scoped_for_compliance(client):
+    from app.core.tracing import tracer
     from app.repositories.auth_repository import ensure_demo_users
     from app.services.invoke import process_invoke
-    from app.core.tracing import tracer
 
     await ensure_demo_users()
     await _make_user("comp_other", "compliance_officer", "org_beta")

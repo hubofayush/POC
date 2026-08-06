@@ -33,10 +33,10 @@ PHI_PATTERNS: dict[str, re.Pattern] = {
     # ── High Sensitivity Identifiers ──
     "ssn": re.compile(r"\b\d{3}[- ]?\d{2}[- ]?\d{4}\b"),
     "credit_card": re.compile(r"\b(?:\d{4}[- ]?){3}\d{4}\b"),
-    "npi": re.compile(r"\b(?:NPI[:\s]*)?\b\d{10}\b", re.I),
-    "dea": re.compile(r"\b(?:DEA[:\s]*)?[A-Z]{2}\d{7}\b", re.I),
-    "medical_id": re.compile(r"\b(?:MRN|PID|PATIENT[- ]?ID)[:\s]*\d{5,}\b", re.I),
-    "license": re.compile(r"\b(?:RN|MD|DO|LPN|PA)[-]?\d{5,}\b", re.I),
+    "npi": re.compile(r"\b(?:NPI[:\s]*)?\b\d{10}\b", re.IGNORECASE),
+    "dea": re.compile(r"\b(?:DEA[:\s]*)?[A-Z]{2}\d{7}\b", re.IGNORECASE),
+    "medical_id": re.compile(r"\b(?:MRN|PID|PATIENT[- ]?ID)[:\s]*\d{5,}\b", re.IGNORECASE),
+    "license": re.compile(r"\b(?:RN|MD|DO|LPN|PA)[-]?\d{5,}\b", re.IGNORECASE),
 
     # ── Contact & Location Identifiers ──
     "email": re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"),
@@ -51,7 +51,7 @@ PHI_PATTERNS: dict[str, re.Pattern] = {
         r"|\d{4}[/-]\d{1,2}[/-]\d{1,2}"                      # YYYY-MM-DD
         r"|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}" # March 12, 2026
         r")\b",
-        re.I,
+        re.IGNORECASE,
     ),
     "name": re.compile(
         r"\b(?:"

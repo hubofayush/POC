@@ -16,12 +16,10 @@ Guards (in execution order):
 from __future__ import annotations
 
 import re
-import unicodedata
 from typing import Any
 
 from app.config import settings
-from app.core.guardrails.base import BaseGuardrail, GuardrailResult, PASS
-
+from app.core.guardrails.base import PASS, BaseGuardrail, GuardrailResult
 
 # ---------------------------------------------------------------------------
 # 1. UTF-8 Byte Budget

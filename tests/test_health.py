@@ -2,7 +2,7 @@
 Wave 2.2 — liveness / readiness probes.
 """
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 
@@ -27,7 +27,7 @@ async def test_readiness_ok_when_db_reachable(client):
 
 
 async def test_readiness_503_when_db_unreachable(client, monkeypatch):
-    import app.main as main
+    from app import main
 
     class _BrokenEngine:
         async def connect(self):

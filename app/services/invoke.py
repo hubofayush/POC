@@ -13,15 +13,15 @@ from uuid import uuid4
 
 from fastapi import HTTPException
 
-from app.schemas import InvokeRequest, InvokeResponse
-from app.core.phi.masker import mask_phi
-from app.core.tracing import tracer
 from app.core.audit import log_entry
 from app.core.logging import get_logger
+from app.core.phi.masker import mask_phi
 from app.core.security.rbac import check_org
-from app.integrations.d3_client import d3_client, D3CallError
+from app.core.tracing import tracer
+from app.integrations.d3_client import D3CallError, d3_client
+from app.schemas import InvokeRequest, InvokeResponse
+from app.services.egress import filter_by_role, verify_citations
 from app.services.ingress import run_ingress_guardrails
-from app.services.egress import verify_citations, filter_by_role
 
 logger = get_logger(__name__)
 

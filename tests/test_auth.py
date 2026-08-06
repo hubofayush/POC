@@ -1,8 +1,11 @@
 """Auth tests: real user store (argon2), refresh rotation, reuse detection, lockout."""
+from datetime import UTC
+
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
+from app.core.security.auth import TOKEN_AUDIENCE, TOKEN_ISSUER, create_token, decode_token
 from app.main import app
-from app.core.security.auth import create_token, decode_token, TOKEN_ISSUER, TOKEN_AUDIENCE
 
 
 @pytest.fixture
@@ -79,6 +82,7 @@ def test_token_claims_include_iss_aud_jti():
 
 def test_decode_rejects_wrong_audience():
     import jwt
+
     from app.core.security.auth import _load_private_key
     token = jwt.encode(
         {"sub": "u", "iss": TOKEN_ISSUER, "aud": "other-app", "exp": 9999999999},
@@ -89,10 +93,12 @@ def test_decode_rejects_wrong_audience():
 
 
 def test_expired_token_rejected():
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     import jwt
+
     from app.core.security.auth import _load_private_key
-    payload = {"sub": "u", "exp": datetime(2020, 1, 1, tzinfo=timezone.utc),
+    payload = {"sub": "u", "exp": datetime(2020, 1, 1, tzinfo=UTC),
                "iss": TOKEN_ISSUER, "aud": TOKEN_AUDIENCE}
     token = jwt.encode(payload, _load_private_key(), algorithm="RS256")
     with pytest.raises(Exception):

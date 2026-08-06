@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
-from sqlalchemy import select, func, desc
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from sqlalchemy import desc, func, select
 
 from app.models.database import AuditEntry, async_session
 
@@ -32,7 +32,7 @@ def _canonical_ts(ts: datetime) -> str:
     must be converted to UTC before stringification or the chain breaks.
     """
     if ts.tzinfo is not None:
-        ts = ts.astimezone(timezone.utc).replace(tzinfo=None)
+        ts = ts.astimezone(UTC).replace(tzinfo=None)
     return ts.strftime("%Y-%m-%dT%H:%M:%S.%f")
 
 
@@ -79,51 +79,50 @@ class AuditRepository:
         details: str = "",
     ) -> str:
         """Insert a new immutable audit record linked to the chain (prev_hash)."""
-        async with _chain_lock:
-            async with async_session() as session:
-                entry = AuditEntry(
-                    user_id=user_id,
-                    user_role=user_role,
-                    user_org=user_org,
-                    client_ip=client_ip,
-                    user_agent=user_agent,
-                    request_path=request_path,
-                    http_method=http_method,
-                    latency_ms=latency_ms,
-                    input_bytes=input_bytes,
-                    action=action,
-                    resource_type=resource_type,
-                    resource_id=resource_id,
-                    guardrail_code=guardrail_code,
-                    guardrail_layer=guardrail_layer,
-                    phi_accessed=phi_accessed,
-                    status=status,
-                    trace_id=trace_id,
-                    details=details,
-                )
-                # Chain link: last entry's hash becomes this entry's prev_hash
-                prev_hash = await session.scalar(
-                    select(AuditEntry.entry_hash)
-                    .order_by(desc(AuditEntry.timestamp), desc(AuditEntry.entry_id))
-                    .limit(1)
-                ) or ""
-                entry.prev_hash = prev_hash
-                # Defaults fire at flush — set id/timestamp now so the chain
-                # hash is computed over the exact persisted values.
-                entry.entry_id = str(uuid4())
-                entry.timestamp = datetime.now(timezone.utc)
-                entry.entry_hash = self._compute_hash(
-                    prev_hash,
-                    entry.entry_id,
-                    user_id,
-                    action,
-                    status,
-                    _canonical_ts(entry.timestamp),
-                    details,
-                )
-                session.add(entry)
-                await session.commit()
-                return entry.entry_id
+        async with _chain_lock, async_session() as session:
+            entry = AuditEntry(
+                user_id=user_id,
+                user_role=user_role,
+                user_org=user_org,
+                client_ip=client_ip,
+                user_agent=user_agent,
+                request_path=request_path,
+                http_method=http_method,
+                latency_ms=latency_ms,
+                input_bytes=input_bytes,
+                action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                guardrail_code=guardrail_code,
+                guardrail_layer=guardrail_layer,
+                phi_accessed=phi_accessed,
+                status=status,
+                trace_id=trace_id,
+                details=details,
+            )
+            # Chain link: last entry's hash becomes this entry's prev_hash
+            prev_hash = await session.scalar(
+                select(AuditEntry.entry_hash)
+                .order_by(desc(AuditEntry.timestamp), desc(AuditEntry.entry_id))
+                .limit(1)
+            ) or ""
+            entry.prev_hash = prev_hash
+            # Defaults fire at flush — set id/timestamp now so the chain
+            # hash is computed over the exact persisted values.
+            entry.entry_id = str(uuid4())
+            entry.timestamp = datetime.now(UTC)
+            entry.entry_hash = self._compute_hash(
+                prev_hash,
+                entry.entry_id,
+                user_id,
+                action,
+                status,
+                _canonical_ts(entry.timestamp),
+                details,
+            )
+            session.add(entry)
+            await session.commit()
+            return entry.entry_id
 
     async def verify_chain(self) -> dict[str, Any]:
         """Replays the hash chain and reports integrity.
@@ -217,20 +216,26 @@ class AuditRepository:
             )
             phi = await session.scalar(
                 select(func.count(AuditEntry.entry_id)).where(
-                    AuditEntry.phi_accessed == True, *org_filter
+                    AuditEntry.phi_accessed.is_(True), *org_filter
                 )
             )
             avg_latency = await session.scalar(
                 select(func.avg(AuditEntry.latency_ms)).where(*org_filter)
-            ) or 0.0
+            )
+            success_total = total or 0
+            success_count = success or 0
 
             return {
-                "total_entries": total or 0,
-                "success_count": success or 0,
+                "total_entries": success_total,
+                "success_count": success_count,
                 "blocked_guardrails": blocked or 0,
-                "success_rate": f"{(success / total * 100):.1f}%" if total else "N/A",
+                "success_rate": (
+                    f"{(success_count / success_total * 100):.1f}%"
+                    if success_total
+                    else "N/A"
+                ),
                 "phi_accesses": phi or 0,
-                "avg_latency_ms": round(float(avg_latency), 2),
+                "avg_latency_ms": round(float(avg_latency or 0.0), 2),
             }
 
 

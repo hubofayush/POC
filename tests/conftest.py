@@ -6,11 +6,13 @@ import os
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./d5_test.db"
 os.environ["DB_AUTO_CREATE"] = "false"
 
-import pytest
 import asyncio
 import pathlib
+from contextlib import suppress
 
-from app.models.database import create_tables, engine, Base
+import pytest
+
+from app.models.database import Base, create_tables, engine
 
 _TEST_DB = pathlib.Path("d5_test.db")
 
@@ -18,17 +20,13 @@ _TEST_DB = pathlib.Path("d5_test.db")
 @pytest.fixture(scope="session", autouse=True)
 async def _fresh_test_db():
     """Start every session from a clean, schema-current test database."""
-    try:
-        _TEST_DB.unlink()
-    except OSError:
-        pass  # file may be briefly locked; drop_all below is schema-independent
+    with suppress(OSError):
+        _TEST_DB.unlink()  # may be briefly locked; drop_all below is schema-independent
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     yield
-    try:
+    with suppress(OSError):
         _TEST_DB.unlink()
-    except OSError:
-        pass
 
 
 @pytest.fixture(scope="session")

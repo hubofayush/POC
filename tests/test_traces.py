@@ -2,11 +2,11 @@
 Persisted traces: created via /invoke survive and are queryable via the API.
 """
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 
-from app.main import app
 from app.core.tracing import tracer
+from app.main import app
 from app.models.database import Trace, async_session
 
 

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.lock
+          pip install -e ".[dev]"
+
+      - name: Ruff lint
+        run: ruff check app/ tests/ scripts/
+
+      - name: Mypy type check
+        run: mypy app/ tests/
+
+      - name: Pytest
+        run: pytest -q --no-header
+
+      - name: Verify migrations upgrade
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///./ci_mig.db
+        run: |
+          alembic upgrade head
+          alembic current

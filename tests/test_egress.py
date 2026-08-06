@@ -2,12 +2,13 @@
 Egress hardening: timeout, retry with backoff, and circuit breaker on the D3 client.
 """
 import asyncio
-import pytest
-from httpx import AsyncClient, ASGITransport
 
-from app.main import app
-from app.integrations.d3_client import D3Client, D3CallError, CircuitOpenError, D3ProviderError
+import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.config import settings
+from app.integrations.d3_client import CircuitOpenError, D3CallError, D3Client, D3ProviderError
+from app.main import app
 
 
 @pytest.fixture

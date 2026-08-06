@@ -11,7 +11,7 @@ auto-generated ONLY in non-production setups; production must provision them
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -81,13 +81,13 @@ _ensure_and_cache_keys()
 
 def _expiry_for(token_type: str) -> datetime:
     if token_type == "refresh":
-        return datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
-    return datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTE)
+        return datetime.now(UTC) + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
+    return datetime.now(UTC) + timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTE)
 
 
 def create_token(user_id: str, role: str, org: str, token_type: str = "access") -> str:
     """Create a signed JWT with iss/aud/jti claims."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": user_id,
         "role": role,
@@ -113,9 +113,13 @@ def decode_token(token: str) -> dict:
             issuer=TOKEN_ISSUER,
         )
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+        ) from None
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        ) from None
 
 
 # ---------------------------------------------------------------------------

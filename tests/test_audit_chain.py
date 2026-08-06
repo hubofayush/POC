@@ -2,11 +2,11 @@
 Tamper-evident audit hash chaining: chain continuity and tamper detection.
 """
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
-from app.main import app
 from app.core.audit import log_entry, verify_chain
+from app.main import app
 from app.models.database import async_session
 
 

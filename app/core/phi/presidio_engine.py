@@ -35,8 +35,8 @@ logger = get_logger(__name__)
 try:
     from presidio_analyzer import (
         AnalyzerEngine,
-        PatternRecognizer,
         Pattern,
+        PatternRecognizer,
         RecognizerRegistry,
     )
     from presidio_analyzer.nlp_engine import NlpEngineProvider
@@ -67,7 +67,7 @@ class PresidioFinding:
 # Custom Healthcare Pattern Recognizers
 # ---------------------------------------------------------------------------
 
-def _build_npi_recognizer() -> "PatternRecognizer":
+def _build_npi_recognizer() -> PatternRecognizer:
     """10-digit National Provider Identifier."""
     return PatternRecognizer(
         supported_entity="NPI",
@@ -83,7 +83,7 @@ def _build_npi_recognizer() -> "PatternRecognizer":
     )
 
 
-def _build_dea_recognizer() -> "PatternRecognizer":
+def _build_dea_recognizer() -> PatternRecognizer:
     """DEA Registration Number: 2 letters + 7 digits."""
     return PatternRecognizer(
         supported_entity="DEA_NUMBER",
@@ -99,7 +99,7 @@ def _build_dea_recognizer() -> "PatternRecognizer":
     )
 
 
-def _build_mrn_recognizer() -> "PatternRecognizer":
+def _build_mrn_recognizer() -> PatternRecognizer:
     """Medical Record Number / Patient ID."""
     return PatternRecognizer(
         supported_entity="MEDICAL_RECORD_NUMBER",
@@ -115,7 +115,7 @@ def _build_mrn_recognizer() -> "PatternRecognizer":
     )
 
 
-def _build_provider_license_recognizer() -> "PatternRecognizer":
+def _build_provider_license_recognizer() -> PatternRecognizer:
     """Provider License: RN/MD/DO/LPN/PA followed by digits."""
     return PatternRecognizer(
         supported_entity="PROVIDER_LICENSE",
@@ -162,11 +162,11 @@ PRESIDIO_ENTITIES: list[str] = [
 # ---------------------------------------------------------------------------
 
 _lock = threading.Lock()
-_analyzer: "AnalyzerEngine | None" = None
-_anonymizer: "AnonymizerEngine | None" = None
+_analyzer: AnalyzerEngine | None = None
+_anonymizer: AnonymizerEngine | None = None
 
 
-def _build_analyzer() -> "AnalyzerEngine":
+def _build_analyzer() -> AnalyzerEngine:
     """Build and return a configured AnalyzerEngine with NLP + custom recognizers."""
     # Configure NLP engine (spaCy)
     nlp_config = {
@@ -195,12 +195,12 @@ def _build_analyzer() -> "AnalyzerEngine":
     logger.info(
         "presidio.analyzer.initialized",
         nlp_model=settings.PRESIDIO_NLP_MODEL,
-        recognizers=len(registry.recognizers),
+        recognizers=len(list(registry.recognizers)),
     )
     return analyzer
 
 
-def _get_analyzer() -> "AnalyzerEngine":
+def _get_analyzer() -> AnalyzerEngine:
     """Thread-safe lazy singleton for AnalyzerEngine."""
     global _analyzer
     if _analyzer is None:
@@ -210,7 +210,7 @@ def _get_analyzer() -> "AnalyzerEngine":
     return _analyzer
 
 
-def _get_anonymizer() -> "AnonymizerEngine":
+def _get_anonymizer() -> AnonymizerEngine:
     """Thread-safe lazy singleton for AnonymizerEngine."""
     global _anonymizer
     if _anonymizer is None:

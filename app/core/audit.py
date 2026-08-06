@@ -7,7 +7,9 @@ Delegates persistence, SHA-256 hash calculation, and queries to app.repositories
 """
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
+
 from app.models.database import AuditEntry
 from app.repositories.audit_repository import audit_repository
 

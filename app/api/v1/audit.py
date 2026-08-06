@@ -9,8 +9,9 @@ any user_org filter they supply is overridden.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from app.api.deps import require_roles, require_org_scope
-from app.core.audit import query_entries, get_stats, verify_chain
+
+from app.api.deps import require_org_scope, require_roles
+from app.core.audit import get_stats, query_entries, verify_chain
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 

@@ -11,6 +11,7 @@ policy checks.
 from __future__ import annotations
 
 import re
+
 from .detector import detect_phi
 
 
@@ -43,7 +44,7 @@ def smart_mask(value: str, phi_type: str) -> str:
         return f"***-***-{digits[-4:]}" if len(digits) >= 4 else "***-***-****"
 
     elif phi_type == "license" or phi_type == "PROVIDER_LICENSE":
-        prefix_match = re.match(r"^[A-Z]+", value, re.I)
+        prefix_match = re.match(r"^[A-Z]+", value, re.IGNORECASE)
         prefix = prefix_match.group().upper() if prefix_match else "LIC"
         return f"{prefix}-*****"
 
@@ -83,7 +84,7 @@ def smart_mask(value: str, phi_type: str) -> str:
         masked_parts = []
         for p in parts:
             # Preserve title prefixes (Dr., Mr., Ms., etc.) unmasked
-            if re.match(r"^(?:Dr|Mr|Mrs|Ms|Prof|Nurse|Patient)\.?$", p, re.I):
+            if re.match(r"^(?:Dr|Mr|Mrs|Ms|Prof|Nurse|Patient)\.?$", p, re.IGNORECASE):
                 masked_parts.append(p)
             else:
                 masked_parts.append(f"{p[0]}***" if len(p) > 0 else "***")

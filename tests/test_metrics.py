@@ -4,7 +4,7 @@ Wave 1.4 — metrics endpoint and telemetry recording.
 import re
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.observability import metrics
@@ -39,7 +39,7 @@ def _count_for(text: str, method: str, path: str, status: str) -> int:
         rf'd5_http_requests_total\{{method="{method}",path="{path}",status="{status}"\}} ([0-9.]+)',
         text,
     )
-    return float(m.group(1)) if m else 0.0
+    return float(m.group(1)) if m else 0.0  # type: ignore[return-value]  # count comparison helper
 
 
 async def test_http_requests_recorded_with_status(client):

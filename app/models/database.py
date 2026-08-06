@@ -6,9 +6,11 @@ SQLAlchemy database models and connection engine.
 AuditEntry model enforces append-only immutability via SQLAlchemy ORM event listeners.
 """
 import uuid
-from datetime import datetime, timezone
-from sqlalchemy import String, Boolean, DateTime, Text, Float, Integer, event
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
+
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, event
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.config import settings
@@ -29,7 +31,7 @@ class AuditEntry(Base):
     __tablename__ = "audit_log"
 
     entry_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
 
     # User & Tenant Context
     user_id: Mapped[str] = mapped_column(String(100), index=True)
@@ -78,7 +80,7 @@ class Trace(Base):
     action: Mapped[str] = mapped_column(String(100), default="invoke")
     input_preview: Mapped[str] = mapped_column(Text, default="")
     start_time: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(20), index=True, default="pending")
@@ -104,7 +106,7 @@ class User(Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -124,7 +126,7 @@ class RefreshToken(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     family_id: Mapped[str] = mapped_column(String(36), index=True)
     issued_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -148,7 +150,7 @@ engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         try:
             yield session
