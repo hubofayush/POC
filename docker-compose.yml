@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: d5
       POSTGRES_USER: d5
-      POSTGRES_PASSWORD: d5_secret
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (see .env.example)}
     ports:
       - "5432:5432"
     volumes:
@@ -22,7 +22,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://d5:d5_secret@db:5432/d5
+      DATABASE_URL: postgresql+asyncpg://d5:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@db:5432/d5
       JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
       JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
       DB_AUTO_CREATE: "false"
