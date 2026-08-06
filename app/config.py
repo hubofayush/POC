@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     # CORS — comma-separated allowlist of origins; empty = same-origin only
     CORS_ALLOW_ORIGINS: str = ""
 
+    # Server-level cap on the raw request body in bytes (reject early, before parsing)
+    MAX_REQUEST_BODY_BYTES: int = 65536
+
+    # Per-IP rate limits for credential endpoints (per-account lockout is separate)
+    AUTH_LOGIN_RATE_LIMIT: str = "100/minute"
+    AUTH_REFRESH_RATE_LIMIT: str = "30/minute"
+
     # LangSmith (set in .env to enable)
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "d5-poc"
@@ -39,6 +46,8 @@ class Settings(BaseSettings):
     GUARDRAIL_MAX_INPUT_BYTES: int = 32768
     # Whether to outright block base64/hex-encoded suspicious payloads
     GUARDRAIL_ENCODED_PAYLOAD_BLOCK: bool = True
+    # Deny requests that omit explicit consent_granted=true (default-deny in prod)
+    GUARDRAIL_CONSENT_DEFAULT_GRANTED: bool = False
 
     # LLM-based Guardrail Settings (Layer 5)
     LLM_GUARDRAIL_ENABLED: bool = True

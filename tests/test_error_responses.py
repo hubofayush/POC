@@ -73,3 +73,35 @@ async def test_consent_block_keeps_useful_public_details(client):
     assert resp.status_code == 403
     details = resp.json()["extensions"]["details"]
     assert details == {"consent_granted": False}
+
+
+@pytest.mark.asyncio
+async def test_oversized_body_rejected_with_413(client):
+    token = await _admin_token(client)
+    resp = await client.post(
+        "/invoke",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "input": "x" * (70 * 1024),
+            "context": {"consent_granted": True},
+        },
+    )
+    assert resp.status_code == 413
+    body = resp.json()
+    assert body["status"] == 413
+    assert "Request Entity Too Large" in body["title"]
+
+
+@pytest.mark.asyncio
+async def test_normal_body_still_accepted(client):
+    token = await _admin_token(client)
+    resp = await client.post(
+        "/invoke",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "input": "What is the current year?",
+            "context": {"consent_granted": True},
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["output"] is not None

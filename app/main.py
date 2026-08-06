@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from app.config import settings
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.rate_limit import add_rate_limiting, limiter
+from app.middleware.body_limit import BodySizeLimitMiddleware
 from app.models.database import create_tables, engine
 
 @asynccontextmanager
@@ -33,6 +34,7 @@ if _cors_origins:
     )
 
 register_error_handlers(app)
+app.add_middleware(BodySizeLimitMiddleware)
 add_rate_limiting(app)
 
 

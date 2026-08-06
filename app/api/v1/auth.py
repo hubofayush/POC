@@ -9,8 +9,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from pydantic import BaseModel, Field
+
+from app.config import settings
+from app.middleware.rate_limit import limiter
 
 from app.core.security.auth import (
     create_token,
@@ -62,8 +65,9 @@ async def _issue_token_pair(user_id: str, role: str, org: str) -> TokenResponse:
     return TokenResponse(access_token=access, refresh_token=refresh)
 
 
+@limiter.limit(settings.AUTH_LOGIN_RATE_LIMIT)
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest):
+async def login(request: Request, body: LoginRequest):
     user = await auth_repository.get_user_by_username(body.username)
 
     if user is None:
@@ -88,8 +92,9 @@ async def login(body: LoginRequest):
     return await _issue_token_pair(user.username, user.role, user.org)
 
 
+@limiter.limit(settings.AUTH_REFRESH_RATE_LIMIT)
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshRequest):
+async def refresh(request: Request, body: RefreshRequest):
     payload = decode_token(body.refresh_token)
     if payload.get("type") != "refresh":
         raise HTTPException(
