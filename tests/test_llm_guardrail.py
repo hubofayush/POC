@@ -5,6 +5,9 @@ Unit tests for Layer 5 – LLM Evaluator Guardrail (Gemini / Zero-shot provider)
 """
 from __future__ import annotations
 
+import json
+
+import httpx
 import pytest
 
 from app.config import settings
@@ -14,6 +17,37 @@ from app.core.guardrails.layer5_llm import LLMEvaluatorGuard
 
 ADMIN_USER = {"sub": "admin_01", "role": "admin", "org": "test_org"}
 CLEAN_CONTEXT = {"consent_granted": True}
+
+
+class FakeGeminiClient:
+    """Captures the outbound request; returns a scripted JSON verdict."""
+
+    captured: dict = {}
+
+    def __init__(self, *args, **kwargs):
+        self.timeout = kwargs.get("timeout")
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def post(self, url: str, json=None, headers=None):
+        type(self).captured = {
+            "url": url,
+            "payload": json,
+            "headers": headers or {},
+        }
+        text = type(self)._response_text
+        content = {
+            "candidates": [{"content": {"parts": [{"text": text}]}}]
+        }
+        return httpx.Response(200, json=content)
+
+    _response_text = json.dumps(
+        {"safe": True, "category": "SAFE", "reason": "ok", "confidence": 0.99}
+    )
 
 
 class TestLayer5LLMGuardrail:
@@ -84,3 +118,82 @@ class TestLayer5LLMGuardrail:
         )
         assert result.passed is True
         assert result.code == "OK"
+
+
+class TestLLMGuardrailApiKeyAndRouting:
+
+    @pytest.mark.asyncio
+    async def test_api_key_sent_as_header_not_url(self, monkeypatch):
+        """The API key must travel in the x-goog-api-key header, never the URL."""
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "secret-key-123")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "gemini")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-2.5-flash")
+        monkeypatch.setattr(httpx, "AsyncClient", FakeGeminiClient)
+        FakeGeminiClient.captured = {}
+
+        guard = LLMEvaluatorGuard()
+        result = await guard.check("Is the license valid?", CLEAN_CONTEXT, ADMIN_USER)
+        assert result.passed is True
+
+        captured = FakeGeminiClient.captured
+        assert "secret-key-123" not in captured["url"]
+        assert "?" not in captured["url"]
+        assert captured["headers"].get("x-goog-api-key") == "secret-key-123"
+
+    @pytest.mark.asyncio
+    async def test_openai_provider_falls_back_to_local_engine(self, monkeypatch):
+        """The broken 'openai' branch must not call Gemini; it uses the local engine."""
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "some-key")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "openai")
+        monkeypatch.setattr(httpx, "AsyncClient", FakeGeminiClient)
+        FakeGeminiClient.captured = {}
+
+        guard = LLMEvaluatorGuard()
+        result = await guard.check("Is the license valid?", CLEAN_CONTEXT, ADMIN_USER)
+        assert result.passed is True
+        assert FakeGeminiClient.captured == {}  # no HTTP call made
+
+    @pytest.mark.asyncio
+    async def test_malformed_evaluator_json_falls_back_safely(self, monkeypatch):
+        """A non-JSON / invalid evaluator response must not crash the pipeline."""
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "some-key")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "gemini")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-2.5-flash")
+        FakeGeminiClient._response_text = "sorry, no json here"
+        monkeypatch.setattr(httpx, "AsyncClient", FakeGeminiClient)
+
+        guard = LLMEvaluatorGuard()
+        result = await guard.check("Is the license valid?", CLEAN_CONTEXT, ADMIN_USER)
+        # fallback engine ran and passed
+        assert result.passed is True
+
+    @pytest.mark.asyncio
+    async def test_invalid_verdict_schema_falls_back(self, monkeypatch):
+        """Evaluator JSON missing required fields must fall back, not crash."""
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "some-key")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "gemini")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-2.5-flash")
+        FakeGeminiClient._response_text = json.dumps({"totally": "wrong"})
+        monkeypatch.setattr(httpx, "AsyncClient", FakeGeminiClient)
+
+        guard = LLMEvaluatorGuard()
+        result = await guard.check("Is the license valid?", CLEAN_CONTEXT, ADMIN_USER)
+        assert result.passed is True
+
+    @pytest.mark.asyncio
+    async def test_unsafe_verdict_blocks_in_block_mode(self, monkeypatch):
+        """A scripted unsafe verdict must block in block mode."""
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "some-key")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "gemini")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-2.5-flash")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODE", "block")
+        FakeGeminiClient._response_text = json.dumps(
+            {"safe": False, "category": "HARMFUL_CONTENT",
+             "reason": "unsafe", "confidence": 0.99}
+        )
+        monkeypatch.setattr(httpx, "AsyncClient", FakeGeminiClient)
+
+        guard = LLMEvaluatorGuard()
+        result = await guard.check("Is the license valid?", CLEAN_CONTEXT, ADMIN_USER)
+        assert result.passed is False
+        assert result.code == "LLM_SAFETY_VIOLATION"

@@ -21,6 +21,7 @@ import re
 from typing import Any
 
 import httpx
+from pydantic import BaseModel, Field, ValidationError
 
 from app.config import settings
 from app.core.guardrails.base import BaseGuardrail, GuardrailResult, PASS
@@ -41,12 +42,20 @@ USER INPUT:
 "{input_text}"
 
 Respond ONLY with valid JSON in this exact structure:
-{
+{{
   "safe": boolean,
   "category": "SAFE" | "HARMFUL_CONTENT" | "INDIRECT_INJECTION" | "ADVERSARIAL_INTENT",
   "reason": "Short concise summary of evaluation",
   "confidence": number between 0.0 and 1.0
-}"""
+}}"""
+
+
+class _EvaluatorVerdict(BaseModel):
+    """Validated JSON schema expected from the LLM evaluator."""
+    safe: bool
+    category: str = Field(default="SAFE")
+    reason: str = Field(default="")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
 class LLMEvaluatorGuard(BaseGuardrail):
@@ -70,14 +79,19 @@ class LLMEvaluatorGuard(BaseGuardrail):
         )
 
     async def _evaluate_with_gemini(self, input_text: str, api_key: str) -> dict[str, Any]:
-        """Calls Google Gemini REST API generateContent endpoint with JSON response schema."""
+        """Calls Google Gemini REST API generateContent with JSON response schema.
+
+        The API key is sent in the ``x-goog-api-key`` header — never in the URL,
+        where it would leak into access logs and proxies.
+        """
         # Normalize model name for standard API endpoints if needed
         model_name = self.model
         if "gemini-3.1" in model_name:
             model_name = "gemini-2.5-flash"  # fallback to active flash model if standard alias
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        headers = {"x-goog-api-key": api_key}
+
         prompt = _EVALUATION_SYSTEM_PROMPT.format(input_text=input_text)
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
@@ -88,16 +102,19 @@ class LLMEvaluatorGuard(BaseGuardrail):
         }
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.post(url, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                candidates = data.get("candidates", [])
-                if candidates:
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    if parts:
-                        text_response = parts[0].get("text", "")
-                        return json.loads(text_response)
-            raise ValueError(f"Gemini API returned status {resp.status_code}")
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code != 200:
+                raise ValueError(f"Gemini API returned status {resp.status_code}")
+            data = resp.json()
+            candidates = data.get("candidates", [])
+            if not candidates:
+                raise ValueError("Gemini API returned no candidates")
+            parts = candidates[0].get("content", {}).get("parts", [])
+            if not parts:
+                raise ValueError("Gemini API returned empty parts")
+            text_response = parts[0].get("text", "")
+            verdict = _EvaluatorVerdict.model_validate(json.loads(text_response))
+            return verdict.model_dump()
 
     def _evaluate_zero_shot_fallback(self, input_text: str) -> dict[str, Any]:
         """
@@ -167,14 +184,28 @@ class LLMEvaluatorGuard(BaseGuardrail):
         eval_result = None
 
         try:
-            if self.provider in ("gemini", "openai") and api_key:
+            if self.provider == "gemini" and api_key:
                 eval_result = await asyncio.wait_for(
                     self._evaluate_with_gemini(input_text, api_key),
                     timeout=self.timeout,
                 )
             else:
+                if self.provider != "gemini":
+                    logger.warning(
+                        "guardrail.llm_evaluator.provider_unimplemented",
+                        provider=self.provider,
+                        msg="Only 'gemini' has an API integration; using local fallback engine",
+                    )
                 # Use local zero-shot safety engine fallback
                 eval_result = self._evaluate_zero_shot_fallback(input_text)
+        except (ValidationError, ValueError, TypeError, json.JSONDecodeError) as err:
+            logger.warning(
+                "guardrail.llm_evaluator.fallback",
+                error=str(err),
+                provider=self.provider,
+                msg="Evaluator response invalid; falling back to local zero-shot engine",
+            )
+            eval_result = self._evaluate_zero_shot_fallback(input_text)
         except Exception as err:
             logger.warning(
                 "guardrail.llm_evaluator.fallback",
