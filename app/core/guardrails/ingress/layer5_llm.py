@@ -1,6 +1,6 @@
 """
-app.core.guardrails.layer5_llm
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+app.core.guardrails.ingress.layer5_llm
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Layer 5 – LLM-Based Semantic & Safety Evaluator Guardrail
 
 Evaluates incoming requests using a fast/lightweight evaluator model (e.g. Gemini)

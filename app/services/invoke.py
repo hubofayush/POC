@@ -20,7 +20,7 @@ from app.core.security.rbac import check_org
 from app.core.tracing import tracer
 from app.integrations.d3_client import D3CallError, d3_client
 from app.schemas import InvokeRequest, InvokeResponse
-from app.services.egress import filter_by_role, verify_citations
+from app.services.egress import run_egress_guardrails
 from app.services.ingress import run_ingress_guardrails
 
 logger = get_logger(__name__)
@@ -163,18 +163,72 @@ async def process_invoke(
         tier=d3_resp.get("tier", "unknown"),
     )
 
+    # --- EGRESS GUARDRAIL PIPELINE (5-Layer) ---
+    logger.info(
+        "egress.start",
+        user_id=user["sub"],
+        role=user_role,
+        output_length=len(d3_resp.get("output", "")),
+        citation_count=len(d3_resp.get("citations", [])),
+        trace_id=trace_id,
+    )
+
+    egress_span = await tracer.create_span(trace_id, "egress_guardrails_pipeline")
+    try:
+        # run_egress_guardrails returns the role-filtered output text
+        pre_mask_output = await run_egress_guardrails(
+            output_text=d3_resp["output"],
+            context=request.context,
+            user=user,
+            citations=d3_resp.get("citations", []),
+            trace_id=trace_id,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+        await tracer.end_span(egress_span, {"status": "passed"})
+    except Exception as exc:
+        await tracer.end_span(egress_span, {"status": "blocked", "error": str(exc)})
+        await tracer.end_trace(trace_id, status="egress_blocked", metadata={"error": str(exc)})
+        latency_ms = round((time.monotonic() - t0) * 1000, 2)
+        await log_entry(
+            user_id=user["sub"],
+            user_role=user_role,
+            user_org=user_org,
+            client_ip=client_ip,
+            user_agent=user_agent,
+            request_path="/invoke",
+            http_method="POST",
+            latency_ms=latency_ms,
+            input_bytes=input_bytes,
+            action="invoke",
+            resource_type="compliance_check",
+            resource_id=request.context.get("clinician_id", "unknown"),
+            phi_accessed=not requires_phi,
+            status="block",
+            guardrail_code=getattr(getattr(exc, "result", None), "code", "EGRESS_BLOCKED"),
+            guardrail_layer=getattr(getattr(exc, "result", None), "layer", "egress.pipeline"),
+            trace_id=trace_id,
+            details=f"error={type(exc).__name__}: {exc}",
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Response suppressed by safety policy. Please rephrase your request.",
+        ) from exc
+
+    logger.info("egress.guardrails.passed", trace_id=trace_id)
+
     # --- EGRESS PHI MASKING ---
+    # Applied AFTER the egress pipeline; EL2 (PHILeakGuard) already audited
+    # any raw PHI that the model returned, and role-filtering was applied in EL4-c.
     if requires_phi:
-        raw_output = await _mask(d3_resp["output"])
+        safe_output = await _mask(pre_mask_output)
     else:
         if user_role in ("admin", "compliance_officer"):
-            raw_output = d3_resp["output"]
+            safe_output = pre_mask_output
         else:
-            raw_output = await _mask(d3_resp["output"])
+            safe_output = await _mask(pre_mask_output)
 
-    safe_output = filter_by_role(raw_output, user_role)
-    citations = verify_citations(safe_output, d3_resp.get("citations", []))
-
+    citations = d3_resp.get("citations", [])
     citation_warning = None
     if not citations:
         citation_warning = (

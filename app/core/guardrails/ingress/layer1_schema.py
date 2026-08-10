@@ -1,6 +1,6 @@
 """
-app.core.guardrails.layer1_schema
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+app.core.guardrails.ingress.layer1_schema
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Layer 1 – Structural / Schema Guards
 
 Guards in this layer operate purely on the raw payload structure and encoding

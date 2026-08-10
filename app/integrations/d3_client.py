@@ -106,18 +106,61 @@ class D3Client:
         if "expired" in text or "expiry" in text:
             return {
                 "output": "License RN-987654 expired on March 12, 2026. Renewal due within 30 days.",
-                "citations": ["MOCK-GOV-RN987654", "MOCK-POLICY-RENEWAL"],
+                "citations": [
+                    {
+                        "file_name": "MOCK-GOV-RN987654.pdf",
+                        "page": 1,
+                        "chunk_id": "chunk_rn987654_001",
+                    },
+                    {
+                        "file_name": "MOCK-POLICY-RENEWAL.pdf",
+                        "page": 3,
+                        "chunk_id": "chunk_renewal_003",
+                    },
+                ],
                 "tier": "cheap",
             }
         if "missing" in text:
             return {
                 "output": "Missing: BLS Certification, HIPAA Training (expired). Action required.",
-                "citations": ["MOCK-POLICY-SURGEON-REQS"],
+                "citations": [
+                    {
+                        "file_name": "MOCK-POLICY-SURGEON-REQS.pdf",
+                        "page": 2,
+                        "chunk_id": "chunk_surgeon_002",
+                    }
+                ],
                 "tier": "frontier",
             }
         return {
-            "output": "All credentials verified. Compliance status: ACTIVE.",
-            "citations": ["MOCK-COMPLIANCE-SUMMARY"],
+            "output": (
+                "The provider credentialing verification is complete. The candidate "
+                "(Dr. Jane Smith, NPI: 1234567890) has an active, unrestricted medical "
+                "license in the state of California, valid through December 31, 2026. "
+                "Board certification in Internal Medicine was verified via ABMS on "
+                "October 5, 2024. No prior disciplinary actions or malpractice claims "
+                "were found in the NPDB report. Compliance status is ACTIVE."
+            ),
+            "citations": [
+                {
+                    "file_name": "STATE_MEDICAL_BOARD_CA_VERIFICATION.pdf",
+                    "page": 1,
+                    "chunk_id": "chunk_license_001",
+                    "text": "License status: ACTIVE. Expiration: 12/31/2026. No restrictions."
+                },
+                {
+                    "file_name": "ABMS_BOARD_CERT_REPORT.pdf",
+                    "page": 2,
+                    "chunk_id": "chunk_abms_004",
+                    "text": "Certified in Internal Medicine. Valid through 2030."
+                },
+                {
+                    "file_name": "NPDB_DISCIPLINARY_CHECK.pdf",
+                    "page": 1,
+                    "chunk_id": "chunk_npdb_002",
+                    "text": "No adverse actions, medical malpractice payments, or judgments."
+                }
+            ],
             "tier": "cheap",
         }
 

@@ -55,13 +55,28 @@ class Settings(BaseSettings):
     # Deny requests that omit explicit consent_granted=true (default-deny in prod)
     GUARDRAIL_CONSENT_DEFAULT_GRANTED: bool = False
 
-    # LLM-based Guardrail Settings (Layer 5)
+    # LLM-based Guardrail Settings (Layer 5 – Ingress)
     LLM_GUARDRAIL_ENABLED: bool = True
     LLM_GUARDRAIL_PROVIDER: str = "gemini"    # "gemini" | "openai" | "ollama" | "mock"
     LLM_GUARDRAIL_API_KEY: str = ""           # GEMINI_API_KEY from environment
     LLM_GUARDRAIL_MODEL: str = "gemini-3.1-flash-lite"
     LLM_GUARDRAIL_MODE: str = "block"          # "block" | "warn"
     LLM_GUARDRAIL_TIMEOUT_SEC: float = 2.0     # Maximum execution timeout in seconds
+
+    # ── Egress / Output Guardrails ──────────────────────────────────────────
+    # Hard ceiling on raw UTF-8 bytes in the LLM output field (default 64 KB)
+    GUARDRAIL_MAX_OUTPUT_BYTES: int = 65536
+    # PHI leak guard: fires BEFORE mask_phi() as a forensic audit checkpoint
+    # "warn" = log + pass (masker downstream handles it)  | "block" = hard stop
+    GUARDRAIL_EGRESS_PHI_MODE: str = "warn"
+    # Hallucination / citation grounding checks
+    # "warn" = log + pass  |  "block" = suppress response
+    GUARDRAIL_EGRESS_GROUNDING_MODE: str = "warn"
+    # LLM-based semantic re-evaluation of the output (Layer 5 – Egress)
+    GUARDRAIL_EGRESS_LLM_ENABLED: bool = True
+    GUARDRAIL_EGRESS_LLM_MODE: str = "block"         # "block" | "warn"
+    GUARDRAIL_EGRESS_LLM_MODEL: str = "gemini-3.1-flash-lite"
+    GUARDRAIL_EGRESS_LLM_TIMEOUT_SEC: float = 2.0
 
     # Presidio PII/PHI Engine Settings
     PRESIDIO_ENABLED: bool = True                   # Master switch for Presidio NLP detection

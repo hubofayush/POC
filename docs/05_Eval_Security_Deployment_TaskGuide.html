@@ -1,0 +1,376 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D5 · Eval, Security, Deployment &amp; Observability · Task Guide</title>
+<style>
+  :root{--bg:#0e1117;--panel:#161b22;--panel2:#1c2230;--ink:#e6edf3;--muted:#9aa7b4;--line:#2a3340;--accent:#58a6ff;--dom:#e3604a;--ok:#3fb950;--warn:#f5b955;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.55;padding:32px 26px 70px;max-width:920px;margin:0 auto}
+  a.back{color:var(--muted);font-size:12px;text-decoration:none}a.back:hover{color:var(--accent)}
+  h1{font-size:25px;margin:8px 0 2px}h1 .dot{color:var(--dom)}
+  .role{color:var(--muted);font-size:13.5px;margin-bottom:4px}
+  .goal{font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--dom);border-radius:10px;padding:12px 16px;margin:14px 0}
+  .goal b{color:var(--dom)}
+  .weekhead{margin:26px 0 6px;font-size:15px;color:var(--ink);border-bottom:1px solid var(--line);padding-bottom:6px}
+  .weekhead span{color:var(--muted);font-size:12px;font-weight:400;display:block;margin-top:2px}
+  details.task{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:10px 0;overflow:hidden}
+  details.task[open]{border-color:var(--dom)}
+  summary{list-style:none;cursor:pointer;padding:13px 16px;display:flex;gap:10px;align-items:flex-start}
+  summary::-webkit-details-marker{display:none}
+  summary .tw{flex:none;font-size:10px;font-weight:700;color:#0e1117;background:var(--dom);border-radius:5px;padding:2px 7px;margin-top:1px;min-width:46px;text-align:center}
+  summary .st{flex:1}
+  summary .st b{font-size:14px;display:block}
+  summary .st em{color:var(--muted);font-size:12.5px;font-style:normal}
+  summary .chev{color:var(--muted);font-size:12px;margin-top:2px}
+  details[open] summary .chev{transform:rotate(90deg)}
+  .body{padding:2px 18px 16px 18px;font-size:13px}
+  .lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin:14px 0 5px}
+  .body ol{margin:4px 0;padding-left:20px}.body ol li{margin:3px 0}
+  .tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+  .tools span{font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+  pre{background:#0b0e14;border:1px solid var(--line);border-radius:9px;padding:12px 14px;overflow-x:auto;font-size:12px;line-height:1.5;margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;color:#cdd9e5}
+  .done,.watch{border-radius:9px;padding:9px 13px;margin-top:10px;font-size:12.5px}
+  .done{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.4)}
+  .done b{color:var(--ok)}
+  .watch{background:rgba(245,185,85,.07);border:1px solid rgba(245,185,85,.35)}
+  .watch b{color:var(--warn)}
+  .intro{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin:14px 0;font-size:13px;color:var(--muted)}
+  .intro b{color:var(--ink)}
+  .foot{color:var(--muted);font-size:11px;margin-top:30px;text-align:center}
+</style></head><body>
+<a class="back" href="05_Eval_Security_Deployment.html">← back to the D5 Eval &amp; Ops checklist</a> &nbsp;·&nbsp; <a class="back" href="index.html">all paths</a>
+<h1><span class="dot">●</span> D5 · Eval, Security, Deployment &amp; Observability — Task Guide</h1>
+<div class="role">Owned product: LLM Eval &amp; Observability Harness · companion to the D5 checklist</div>
+<div class="goal"><b>Goal of this guide:</b> get you unstuck on every hands-on D5 task — the eval harness the whole team depends on, guardrails, governance, deployment, and the cost/latency dashboards that make a system shippable. Each task shows the shape; you make it the team’s safety net.</div>
+<div class="intro"><b>How to use this guide.</b> This expands every hands-on task from the checklist into step-by-step instructions with starter code. Keep the checklist open in one tab and this in another. Each task is collapsed — click the one you’re working on to expand it. <b>The code is a starting point, not a finished answer</b> — it shows the shape; you make it work. Verify current model names and pricing against provider docs, since those change.</div>
+<div class="weekhead">Week 1 · Evaluation foundations<span>The harness the whole team depends on.</span></div>
+<details class="task">
+<summary><span class="tw">W1</span><span class="st"><b>Build a reusable eval harness</b><em>A drop-in runner: golden set + LLM-judge + Ragas.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Define a dataset format (input, output, contexts, ground_truth).</li>
+<li>Add a golden-set runner and an LLM-as-judge scorer.</li>
+<li>Wire Ragas for RAG metrics and return one summary.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>ragas</span>
+<span>datasets</span>
+<span>anthropic SDK</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code># uv add ragas datasets
+from ragas import evaluate
+from ragas.metrics import faithfulness, answer_relevancy
+
+def run_eval(app_fn, dataset):
+    rows = []
+    for ex in dataset:
+        out = app_fn(ex[&quot;input&quot;])
+        rows.append({&quot;question&quot;: ex[&quot;input&quot;], &quot;answer&quot;: out[&quot;answer&quot;],
+                     &quot;contexts&quot;: out[&quot;contexts&quot;], &quot;ground_truth&quot;: ex[&quot;truth&quot;]})
+    return evaluate(to_hf(rows), metrics=[faithfulness, answer_relevancy])
+
+# expose run_eval so D1-D4 can `from harness import run_eval`</code></pre>
+<div class="done"><b>&#10003; Done when:</b> Any teammate can import your harness, pass their app + dataset, and get scores back.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Make it framework-agnostic — it should score a plain function, so every domain can use it without adopting your internals.</div>
+</div></details>
+<details class="task">
+<summary><span class="tw">W1</span><span class="st"><b>Add an LLM-as-judge with a rubric</b><em>Score open-ended answers consistently.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Write a rubric (what 1–5 means).</li>
+<li>Have a judge model score answers against it.</li>
+<li>Mitigate bias (randomize order in pairwise, pin the judge model).</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>anthropic SDK</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>def judge(question, answer, rubric):
+    m = a.messages.create(model=&quot;claude-sonnet-4-5&quot;, max_tokens=200,
+        messages=[{&quot;role&quot;:&quot;user&quot;,&quot;content&quot;:
+            f&quot;Rubric:\n{rubric}\n\nQ: {question}\nA: {answer}\n&quot;
+            &quot;Return JSON: {\&quot;score\&quot;:1-5,\&quot;reason\&quot;:\&quot;...\&quot;}&quot;}])
+    return json.loads(m.content[0].text)</code></pre>
+<div class="done"><b>&#10003; Done when:</b> The judge returns a consistent score + reason against your rubric on a sample set.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Judges have biases (length, position, self-preference). Pin the judge model and spot-check it against human labels.</div>
+</div></details>
+<div class="weekhead">Week 2 · Agentic eval &amp; routing policy<span>Evaluating agents and proving routing pays off.</span></div>
+<details class="task">
+<summary><span class="tw">W2</span><span class="st"><b>Add trajectory / tool-call eval</b><em>Score how the agent worked, not just the answer.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Capture the agent’s trace (steps + tool calls).</li>
+<li>Check tool-call correctness and step validity.</li>
+<li>Add task-success scoring on top.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>your harness</span>
+<span>D3 traces</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>def eval_trajectory(trace, expected_tools):
+    used = [s[&quot;tool&quot;] for s in trace if s.get(&quot;tool&quot;)]
+    tool_ok = set(expected_tools) &lt;= set(used)
+    no_loops = len(used) == len(set(used)) or len(used) &lt; 12
+    success = trace[-1].get(&quot;status&quot;) == &quot;done&quot;
+    return {&quot;tool_ok&quot;: tool_ok, &quot;no_loops&quot;: no_loops, &quot;success&quot;: success}</code></pre>
+<div class="done"><b>&#10003; Done when:</b> The harness reports tool-call correctness and task success for D3’s agent.</div>
+<div class="watch"><b>&#9888; Watch out:</b> An agent can get the right answer the wrong way (unsafe write, 30 wasted steps). Trajectory eval catches what answer-only eval misses.</div>
+</div></details>
+<details class="task">
+<summary><span class="tw">W2</span><span class="st"><b>Define a routing policy + cost/quality comparison</b><em>Prove cheap-vs-frontier routing saves money safely.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Define cost/quality tiers and a fallback chain.</li>
+<li>Run the same eval set across tiers.</li>
+<li>Show the cost saved and the quality delta.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>litellm</span>
+<span>your harness</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>tiers = {&quot;cheap&quot;:&quot;openai/gpt-4o-mini&quot;, &quot;frontier&quot;:&quot;anthropic/claude-sonnet-4-5&quot;}
+report = {}
+for name, model in tiers.items():
+    score = run_eval(lambda x: ask(x, model=model), golden)
+    report[name] = {&quot;quality&quot;: score, &quot;cost&quot;: total_cost()}
+print(report)   # the table you show a customer</code></pre>
+<div class="done"><b>&#10003; Done when:</b> You can show a table: routing cuts cost by X% with an acceptable quality delta.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Routing that saves money but quietly drops quality is a net loss. The policy must include a quality floor, not just a budget.</div>
+</div></details>
+<details class="task">
+<summary><span class="tw">W2</span><span class="st"><b>Document the model-adaptation call</b><em>Know when to recommend fine-tuning vs prompt/RAG.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Write the decision: prompt → RAG → routing → fine-tune.</li>
+<li>Note what fine-tuning costs (data, time, maintenance).</li>
+<li>Capture the signal that justifies it (a narrow task still failing).</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>your eval data</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>Decision note template:
+  problem: &lt;narrow, repeated task&gt; still fails after prompt+RAG+routing
+  evidence: eval score stuck at X over N attempts
+  options: LoRA (self-host) vs managed FT; data needed: ~K examples
+  recommendation: &lt;prompt|rag|route|fine-tune&gt; because &lt;eval-backed reason&gt;</code></pre>
+<div class="done"><b>&#10003; Done when:</b> You can justify a fine-tune (or not) with eval evidence, not intuition.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Fine-tuning is the last rung and the most expensive to maintain. Exhaust prompt/RAG/routing first and show you did.</div>
+</div></details>
+<div class="weekhead">Week 3 · Guardrails<span>Stopping the bad stuff at the edges.</span></div>
+<details class="task">
+<summary><span class="tw">W3</span><span class="st"><b>Build ingress/egress guardrails</b><em>Validate I/O, block injection, verify citations.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>On input: validate schema and screen for injection.</li>
+<li>On output: enforce format and check claims are cited.</li>
+<li>Reject or repair anything that fails.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>pydantic</span>
+<span>your harness</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>def ingress(text):
+    assert len(text) &lt; 8000, &quot;input too long&quot;
+    if any(p in text.lower() for p in (&quot;ignore previous&quot;,&quot;system prompt&quot;)):
+        flag(&quot;possible injection&quot;, text)
+    return text
+
+def egress(answer, contexts):
+    # every factual sentence should map to a provided context
+    if not citations_supported(answer, contexts):
+        return &quot;I can only answer from the provided sources.&quot;
+    return answer</code></pre>
+<div class="done"><b>&#10003; Done when:</b> Injection attempts are flagged on input and uncited claims are blocked/repaired on output.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Guardrails are defense-in-depth, not a single filter. One regex won’t stop injection — layer input checks, output checks, and least privilege.</div>
+</div></details>
+<div class="weekhead">Week 4 · Security, governance &amp; compliance<span>What enterprise buyers actually ask about.</span></div>
+<details class="task">
+<summary><span class="tw">W4</span><span class="st"><b>Add PII redaction + an audit log</b><em>Minimize data exposure and record every action.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Detect and redact PII before it hits the model/logs.</li>
+<li>Append an immutable audit record per request/action.</li>
+<li>Document a tenant-isolation approach.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>presidio</span>
+<span>an append-only store</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code># uv add presidio-analyzer presidio-anonymizer
+from presidio_analyzer import AnalyzerEngine
+from presidio_anonymizer import AnonymizerEngine
+an, anon = AnalyzerEngine(), AnonymizerEngine()
+
+def redact(text):
+    found = an.analyze(text=text, language=&quot;en&quot;)
+    return anon.anonymize(text=text, analyzer_results=found).text
+
+audit_append({&quot;ts&quot;: now(), &quot;tenant&quot;: tid, &quot;action&quot;: &quot;invoke&quot;, &quot;pii_redacted&quot;: True})</code></pre>
+<div class="done"><b>&#10003; Done when:</b> PII is redacted before model/logs, and each request leaves an immutable audit entry.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Redact before logging, not after — a log line with raw PII is itself the breach. And keep audit logs append-only.</div>
+</div></details>
+<div class="weekhead">Week 5 · Deployment<span>From ‘runs on my machine’ to ‘runs for a customer’.</span></div>
+<details class="task">
+<summary><span class="tw">W5</span><span class="st"><b>Containerize + CI that runs eval &amp; smoke tests</b><em>Every change is built and gated automatically.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Write a Dockerfile for the service.</li>
+<li>Add a CI workflow that builds, runs smoke tests, and runs the eval.</li>
+<li>Block merges on failure.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>docker</span>
+<span>github actions</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code># .github/workflows/ci.yml
+name: ci
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t app .
+      - run: docker run app pytest -q          # smoke tests
+      - run: docker run app python eval.py --min-score 0.8   # eval gate</code></pre>
+<div class="done"><b>&#10003; Done when:</b> Opening a PR builds the image, runs smoke tests + eval, and fails the check on regression.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Pin versions and bake secrets in at runtime (env), never in the image. A baked-in key ships to everyone with the image.</div>
+</div></details>
+<div class="weekhead">Week 6 · Observability &amp; cost<span>You can’t operate what you can’t see.</span></div>
+<details class="task">
+<summary><span class="tw">W6</span><span class="st"><b>Add end-to-end tracing + a cost/latency dashboard</b><em>Every step is a span with tokens, cost, latency.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Instrument calls with tracing (LangSmith/Langfuse or OTel).</li>
+<li>Record tokens, cost, latency, and eval scores per span.</li>
+<li>Surface them on a dashboard.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>langfuse / langsmith</span>
+<span>opentelemetry</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code># uv add langfuse
+from langfuse.decorators import observe
+@observe()
+def invoke(question):
+    # spans auto-captured; attach metrics
+    log_metric(&quot;tokens&quot;, n); log_metric(&quot;cost_usd&quot;, c); log_metric(&quot;latency_ms&quot;, ms)
+    return answer</code></pre>
+<div class="done"><b>&#10003; Done when:</b> A request produces a trace with per-step tokens, cost, and latency visible on a dashboard.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Trace sampling vs full capture is a cost choice — capture everything in dev, sample in high-volume prod.</div>
+</div></details>
+<details class="task">
+<summary><span class="tw">W6</span><span class="st"><b>Add a semantic cache; measure hit-rate</b><em>Cut cost/latency on semantically repeated queries.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Embed incoming queries; on a near-duplicate hit, return the cached answer.</li>
+<li>Track hit-rate and the cost/latency saved.</li>
+<li>Set a similarity threshold that avoids wrong hits.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>embeddings</span>
+<span>a vector cache</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>def cached_answer(q, threshold=0.95):
+    qv = embed(q)
+    hit = cache.nearest(qv)
+    if hit and hit.score &gt;= threshold:
+        metrics.incr(&quot;cache_hit&quot;); return hit.answer
+    ans = run_llm(q); cache.put(qv, ans); return ans</code></pre>
+<div class="done"><b>&#10003; Done when:</b> Repeated/near-duplicate queries hit the cache, and you can show the hit-rate and savings.</div>
+<div class="watch"><b>&#9888; Watch out:</b> Too low a threshold returns a confidently wrong cached answer. Tune it and exclude personalized/time-sensitive queries.</div>
+</div></details>
+<details class="task">
+<summary><span class="tw">W6</span><span class="st"><b>Load test + p95 budget, and an eval quality gate</b><em>Prove it holds under load and won’t regress.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Run a load test capturing p95 latency.</li>
+<li>Set a p95 budget the CI enforces.</li>
+<li>Wire the eval quality gate that blocks merges on regression.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>locust / k6</span>
+<span>your CI</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code># locustfile.py
+from locust import HttpUser, task
+class U(HttpUser):
+    @task
+    def invoke(self): self.client.post(&quot;/invoke&quot;, json={&quot;question&quot;:&quot;hi&quot;})
+# CI: assert p95_ms &lt; 2500 and eval_score &gt;= 0.8 else fail</code></pre>
+<div class="done"><b>&#10003; Done when:</b> You have a recorded p95 under load and CI fails when latency or eval score regresses.</div>
+<div class="watch"><b>&#9888; Watch out:</b> p50 lies under load; track p95/p99. A great average with a terrible tail still means angry users.</div>
+</div></details>
+<div class="weekhead">★ Expert bar — prove the domain<span>Wrap it, gate it, deploy it, teach it.</span></div>
+<details class="task">
+<summary><span class="tw">SHIP</span><span class="st"><b>Ship the drop-in Eval &amp; Observability Harness</b><em>Wraps any of the other four products’ apps.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Package the harness so D1–D4 can wrap their app in it.</li>
+<li>Demo it on its own sample app.</li>
+<li>Show eval (RAG + agent trajectory) gating merges in CI.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>your harness</span>
+<span>CI</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>from harness import wrap
+guarded_app = wrap(any_invoke_fn,
+                   guardrails=True, tracing=True, eval_gate=0.8)
+# now D1-D4 get eval + guardrails + tracing for free</code></pre>
+<div class="done"><b>&#10003; Done when:</b> Another product can wrap itself in your harness and immediately get eval, guardrails, and tracing.</div>
+<div class="watch"><b>&#9888; Watch out:</b> If wrapping requires each team to learn your internals, it isn’t drop-in. Keep the surface a single wrap() call.</div>
+</div></details>
+<details class="task">
+<summary><span class="tw">SHIP</span><span class="st"><b>Guardrails, audit, Docker + live dashboard verified</b><em>The production checklist for the harness.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Confirm guardrails active (injection, PII, citation).</li>
+<li>Confirm audit logging on.</li>
+<li>Confirm Docker deploy with a live tracing + cost/latency dashboard.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>your harness</span>
+<span>docker</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>assert guardrails.active([&quot;injection&quot;,&quot;pii&quot;,&quot;citation&quot;])
+assert audit_log.is_append_only()
+assert dashboard.live() and metrics([&quot;tokens&quot;,&quot;cost&quot;,&quot;latency&quot;,&quot;eval&quot;])</code></pre>
+<div class="done"><b>&#10003; Done when:</b> All hold: guardrails on, audit append-only, deployed with a live metrics dashboard.</div>
+<div class="watch"><b>&#9888; Watch out:</b> A dashboard nobody watches isn’t observability. Pair it with alerts on the metrics that matter (cost spike, eval drop).</div>
+</div></details>
+<details class="task">
+<summary><span class="tw">SHIP</span><span class="st"><b>Teach-back: ‘how we prove an AI system is safe enough to ship’ (30 min)</b><em>The team adopts the safety bar.</em></span><span class="chev">&#9656;</span></summary>
+<div class="body">
+<div class="lbl">Steps</div><ol>
+<li>Walk eval → guardrails → governance → deploy → observability.</li>
+<li>Show the CI gate blocking a real regression.</li>
+<li>Hand over the wrap() and the gate config.</li>
+</ol>
+<div class="lbl">Tools</div><div class="tools">
+<span>your harness</span>
+<span>CI demo</span>
+</div>
+<div class="lbl">Starter code</div>
+<pre><code>Ship-readiness bar to teach:
+  - eval gate (RAG + trajectory) green in CI
+  - guardrails: injection, PII, citations
+  - audit log + tenant isolation
+  - deployed, traced, cost+p95 within budget</code></pre>
+<div class="done"><b>&#10003; Done when:</b> Teammates can state and apply the ship-readiness bar to their own product.</div>
+<div class="watch"><b>&#9888; Watch out:</b> This bar is what every other domain depends on — make it easy to adopt, or teams will route around it.</div>
+</div></details>
+<div class="foot">Dynamisch · D5 Eval, Security &amp; Deployment Task Guide · all tasks run on mock / synthetic data</div>
+</body></html>

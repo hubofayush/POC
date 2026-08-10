@@ -1,11 +1,11 @@
 """
-app.core.guardrails.pipeline
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Assembles all four layers into a single GuardrailPipeline singleton.
+app.core.guardrails.ingress.pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Assembles all ingress guardrail layers into a single GuardrailPipeline singleton.
 
 Usage
 -----
-    from app.core.guardrails.pipeline import ingress_pipeline
+    from app.core.guardrails.ingress import ingress_pipeline
 
     try:
         await ingress_pipeline.run(input_text, context, user, trace_id=trace_id)
@@ -14,29 +14,29 @@ Usage
         raise HTTPException(status_code=..., detail=exc.result.to_dict())
 """
 from app.core.guardrails.base import GuardrailPipeline
-from app.core.guardrails.layer1_schema import (
+from app.core.guardrails.ingress.layer1_schema import (
     ContextDepthGuard,
     EncodingAnomalyGuard,
     ForbiddenKeyGuard,
     UTF8BudgetGuard,
 )
-from app.core.guardrails.layer2_security import (
+from app.core.guardrails.ingress.layer2_security import (
     DelimiterHijackGuard,
     EncodedPayloadGuard,
     ExcessiveRepetitionGuard,
     PHIInInputGuard,
     PromptInjectionGuard,
 )
-from app.core.guardrails.layer3_policy import (
+from app.core.guardrails.ingress.layer3_policy import (
     ConsentGuard,
     PHIAccessEntitlementGuard,
     RBACTokenBudgetGuard,
 )
-from app.core.guardrails.layer4_content import (
+from app.core.guardrails.ingress.layer4_content import (
     LanguageGuard,
     TopicScopeGuard,
 )
-from app.core.guardrails.layer5_llm import LLMEvaluatorGuard
+from app.core.guardrails.ingress.layer5_llm import LLMEvaluatorGuard
 
 
 def build_ingress_pipeline() -> GuardrailPipeline:
@@ -44,7 +44,7 @@ def build_ingress_pipeline() -> GuardrailPipeline:
     Factory that constructs the ordered ingress guardrail pipeline.
 
     Guard execution order is intentional:
-      L1 (cheapest) → L2 (regex) → L3 (business rules) → L4 (heuristics)
+      L1 (cheapest) → L2 (regex) → L3 (business rules) → L4 (heuristics) → L5 (LLM)
 
     Each layer short-circuits the rest if it blocks.
     """

@@ -1,6 +1,6 @@
 """
-app.core.guardrails.layer3_policy
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+app.core.guardrails.ingress.layer3_policy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Layer 3 – Consent & RBAC Policy Guards
 
 Enforces business-level access control policies *before* any AI call is made.

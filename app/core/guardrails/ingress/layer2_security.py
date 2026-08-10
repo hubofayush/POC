@@ -1,6 +1,6 @@
 """
-app.core.guardrails.layer2_security
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+app.core.guardrails.ingress.layer2_security
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Layer 2 – Security / Threat Detection Guards
 
 Detects prompt injection, jailbreak, delimiter hijacking, encoded payloads,

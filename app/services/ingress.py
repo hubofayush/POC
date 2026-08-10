@@ -14,7 +14,7 @@ from typing import Any
 
 from app.core.audit import log_guardrail_event
 from app.core.guardrails.base import GuardrailException
-from app.core.guardrails.pipeline import ingress_pipeline
+from app.core.guardrails.ingress import ingress_pipeline
 from app.core.logging import get_logger
 from app.observability import metrics
 

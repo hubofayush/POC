@@ -18,7 +18,8 @@ import base64
 import pytest
 
 from app.core.guardrails.base import GuardrailException
-from app.core.guardrails.pipeline import build_ingress_pipeline, ingress_pipeline
+from app.core.guardrails.ingress import ingress_pipeline
+from app.core.guardrails.ingress.pipeline import build_ingress_pipeline
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

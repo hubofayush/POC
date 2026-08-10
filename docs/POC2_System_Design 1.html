@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POC 2 — AI Healthcare Compliance &amp; Credential Verification · System Design &amp; Flows</title>
+<style>
+  :root{
+    --bg:#0e1117; --panel:#161b22; --panel2:#1c2230; --ink:#e6edf3; --muted:#9aa7b4;
+    --line:#2a3340; --accent:#58a6ff;
+    --u:#58a6ff; --h:#f5b955; --d1:#3fb950; --d2:#a371f7; --d3:#58a6ff; --d4:#f778ba; --d5:#e3604a;
+    --cap:#2dd4bf; --new:#2dd4bf;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.45;padding:32px 28px 60px}
+  h1{font-size:28px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:14px}
+  .tag{display:inline-block;font-size:11px;color:var(--accent);border:1px solid var(--line);
+    border-radius:999px;padding:2px 10px;margin:2px 4px 2px 0;background:var(--panel)}
+  .band{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:18px 0}
+  .band h2{margin:0 0 12px;font-size:15px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .legend span i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  svg{width:100%;height:auto;display:block}
+  /* stack chips */
+  .stack{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  .chip b{color:var(--accent)}
+  /* pipeline */
+  .pipe{display:flex;flex-wrap:wrap;align-items:stretch;gap:0}
+  .pipe .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;flex:1;min-width:96px;text-align:center;position:relative}
+  .pipe .step b{display:block;font-size:12px;margin-bottom:2px}
+  .pipe .step span{color:var(--muted);font-size:10.5px}
+  .pipe .arrow{display:flex;align-items:center;color:var(--accent);font-size:18px;padding:0 6px}
+  .s1 b{color:var(--d4)}.s2 b{color:var(--d4)}.s3 b{color:var(--d1)}.s4 b{color:var(--d1)}
+  .s5 b{color:var(--d3)}.s6 b{color:var(--d4)}.s7 b{color:var(--d3)}.s8 b{color:var(--d4)}
+  /* flows */
+  .ucgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .uc{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .uc h3{margin:0 0 2px;font-size:15px}
+  .uc .q{color:var(--cap);font-size:12.5px;font-style:italic;margin-bottom:10px}
+  .steps{list-style:none;margin:0;padding:0}
+  .steps li{display:flex;gap:9px;align-items:baseline;padding:5px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+  .steps li:last-child{border-bottom:none}
+  .pill{flex:none;font-size:10px;font-weight:700;color:#0e1117;border-radius:5px;padding:1px 6px;min-width:30px;text-align:center}
+  .p-u{background:var(--u)}.p-h{background:var(--h)}.p-d1{background:var(--d1)}.p-d2{background:var(--d2)}
+  .p-d3{background:var(--d3)}.p-d4{background:var(--d4)}.p-d5{background:var(--d5)}
+  .key{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:4px}
+  .key span i{display:inline-block;width:24px;height:13px;border-radius:4px;margin-right:5px;vertical-align:-2px;text-align:center;font-size:9px;font-weight:700;color:#0e1117;line-height:13px}
+  .note{color:var(--muted);font-size:12.5px;margin:0}
+  code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px;color:var(--accent)}
+  .foot{color:var(--muted);font-size:11px;margin-top:24px;text-align:center}
+  /* agents / feature grid */
+  .agents{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .agents div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 13px;font-size:12px}
+  .agents div b{display:block;color:var(--d3);font-size:12.5px;margin-bottom:5px}
+  .agents div span{color:var(--muted);font-size:11px}
+  .feat{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .feat div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12px}
+  .feat div b{display:block;color:var(--cap);font-size:12px;margin-bottom:4px}
+  .feat div span{color:var(--muted);font-size:11px}
+  /* maturity ladder */
+  .ladder{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .ladder div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:12px}
+  .ladder div b{display:block;color:var(--new);font-size:12px;margin-bottom:4px}
+  .ladder div span{color:var(--muted);font-size:11px}
+  @media print{body{background:#fff;color:#111}.band,.uc{break-inside:avoid}}
+  @media(max-width:780px){.ucgrid{grid-template-columns:1fr}.ladder{grid-template-columns:1fr 1fr}.agents{grid-template-columns:1fr 1fr}.feat{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<h1>POC 2 — AI Healthcare Compliance &amp; Credential Verification</h1>
+<div class="sub">System Design &amp; Flows · organizations upload <b>licenses, certifications, vaccination &amp; compliance documents</b>; AI validates them and answers compliance questions · five domains composed by the <code>/invoke</code> contract</div>
+<div>
+  <span class="tag">⭐⭐⭐⭐⭐ UNA Healthcare fit</span>
+  <span class="tag">D1 RAG · D2 Memory · D3 Agents · D4 Connectors · D5 HIPAA &amp; Security</span>
+  <span class="tag">HIPAA-aware · PII-masked · fully audited</span>
+  <span class="tag">Mock / synthetic records + one real government-API path</span>
+</div>
+
+<div class="band">
+  <h2>Tech Stack (decisions)</h2>
+  <div class="stack">
+    <span class="chip"><b>Frontend</b> · React upload + compliance dashboard</span>
+    <span class="chip"><b>API</b> · FastAPI (Python)</span>
+    <span class="chip"><b>Agents</b> · LangGraph — Document · Verification · Compliance · Report</span>
+    <span class="chip"><b>LLM tooling</b> · LangChain components</span>
+    <span class="chip"><b>Models</b> · OpenAI / Claude (vision for OCR/face/signature)</span>
+    <span class="chip"><b>Doc AI</b> · OCR · face verification · signature detection</span>
+    <span class="chip"><b>Vector + relational</b> · PostgreSQL + pgvector</span>
+    <span class="chip"><b>Memory &amp; cache</b> · Redis</span>
+    <span class="chip"><b>Connectors</b> · MCP — Credential APIs · Government APIs · HRMS · Email · OCR</span>
+    <span class="chip"><b>Eval / Obs</b> · LangSmith (tracing + hallucination eval)</span>
+    <span class="chip"><b>Ship</b> · Docker</span>
+    <span class="chip"><b>Shared contract</b> · every domain exposes <code>/invoke</code> → {output, citations, metadata}</span>
+  </div>
+  <p style="margin:10px 0 0;font-size:12px;color:var(--muted)">Stack follows the LangGraph-standard FDE pattern; the SRS fixes the domains, agents, connectors and doc-AI features. The single shared contract is the <i>only</i> coupling between the five domains — each is built and tested alone against mock clinician records, then chained with no rework. Going live is a config change: point D1 at real regulations and swap D4's mock credential/government APIs for real tenants.</p>
+</div>
+
+<div class="band">
+  <h2>Verification Workflow — the credential pipeline (from the SRS)</h2>
+  <div class="pipe">
+    <div class="step s1"><b>Upload License</b><span>D4 · clinician / HR submits</span></div>
+    <div class="arrow">→</div>
+    <div class="step s2"><b>OCR</b><span>D4 · extract fields</span></div>
+    <div class="arrow">→</div>
+    <div class="step s3"><b>Embedding</b><span>D1 · vectorize</span></div>
+    <div class="arrow">→</div>
+    <div class="step s4"><b>RAG</b><span>D1 · match policy</span></div>
+    <div class="arrow">→</div>
+    <div class="step s5"><b>Verification Agent</b><span>D3 · cross-check</span></div>
+    <div class="arrow">→</div>
+    <div class="step s6"><b>Government API</b><span>D4 · authoritative check</span></div>
+    <div class="arrow">→</div>
+    <div class="step s7"><b>Compliance Report</b><span>D3 · Report Agent</span></div>
+    <div class="arrow">→</div>
+    <div class="step s8"><b>Notify HR</b><span>D4 · Email / HRMS</span></div>
+  </div>
+  <p class="note" style="margin-top:10px">This linear pipeline is the platform's core ingestion path. Every step is wrapped by D5 (HIPAA controls, PII masking, audit log) and traced end-to-end. The conversational flows below reuse the <i>same</i> domain services against the records this pipeline has already indexed.</p>
+</div>
+
+<div class="band">
+  <h2>System Architecture — how the five domains fit together</h2>
+  <div class="legend">
+    <span><i style="background:var(--d1)"></i>D1 RAG (policies &amp; regs)</span>
+    <span><i style="background:var(--d2)"></i>D2 Memory</span>
+    <span><i style="background:var(--d3)"></i>D3 Agents (LangGraph)</span>
+    <span><i style="background:var(--d4)"></i>D4 MCP &amp; Connectors</span>
+    <span><i style="background:var(--d5)"></i>D5 HIPAA &amp; Security (wraps all)</span>
+  </div>
+  <svg viewBox="0 0 1000 730" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+    <defs>
+      <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L7,3 L0,6 Z" fill="#9aa7b4"/>
+      </marker>
+    </defs>
+
+    <!-- user -->
+    <rect x="350" y="14" width="300" height="46" rx="10" fill="#1c2230" stroke="#58a6ff"/>
+    <text x="500" y="34" fill="#e6edf3" font-size="13" font-weight="700" text-anchor="middle">Clinicians / HR / Compliance officers</text>
+    <text x="500" y="50" fill="#9aa7b4" font-size="11" text-anchor="middle">upload documents · ask compliance questions</text>
+
+    <!-- D5 outer frame -->
+    <rect x="24" y="86" width="952" height="616" rx="16" fill="rgba(227,96,74,0.05)" stroke="#e3604a" stroke-dasharray="6 5"/>
+    <rect x="40" y="76" width="670" height="22" rx="6" fill="#0e1117"/>
+    <text x="52" y="92" fill="#e3604a" font-size="12.5" font-weight="700">D5 · HIPAA · PII masking · RBAC · audit logs · monitoring — wraps everything</text>
+
+    <!-- ingress -->
+    <rect x="60" y="112" width="880" height="34" rx="8" fill="#1c2230" stroke="#e3604a"/>
+    <text x="500" y="134" fill="#e6edf3" font-size="12" text-anchor="middle">Ingress (D5): authenticate · RBAC (org / role) · PHI/PII redaction · consent &amp; injection check</text>
+
+    <!-- orchestrator -->
+    <rect x="345" y="178" width="310" height="72" rx="12" fill="#58a6ff"/>
+    <text x="500" y="203" fill="#0e1117" font-size="14" font-weight="700" text-anchor="middle">D3 · Orchestrator (LangGraph)</text>
+    <text x="500" y="221" fill="#0e1117" font-size="10.5" text-anchor="middle">Document · Verification · Compliance · Report</text>
+    <text x="500" y="238" fill="#0e1117" font-size="10.5" text-anchor="middle">plan · verify · reflect</text>
+
+    <!-- model router -->
+    <rect x="60" y="172" width="250" height="84" rx="12" fill="#1c2230" stroke="#58a6ff" stroke-width="1.5"/>
+    <text x="185" y="194" fill="#58a6ff" font-size="12.5" font-weight="700" text-anchor="middle">Model Router</text>
+    <text x="185" y="212" fill="#e6edf3" font-size="10.5" text-anchor="middle">OpenAI ↔ Claude per task</text>
+    <text x="185" y="228" fill="#3fb950" font-size="10" text-anchor="middle">D3 picks (cheap ↔ vision/frontier)</text>
+    <text x="185" y="244" fill="#e3604a" font-size="10" text-anchor="middle">D5 sets cost/quality policy + fallback</text>
+    <line x1="345" y1="214" x2="312" y2="214" stroke="#9aa7b4" stroke-width="1.4" marker-end="url(#arr)"/>
+    <line x1="312" y1="204" x2="345" y2="204" stroke="#9aa7b4" stroke-width="1.4" marker-end="url(#arr)"/>
+
+    <!-- services -->
+    <!-- D1 -->
+    <rect x="60" y="312" width="250" height="76" rx="12" fill="#1c2230" stroke="#3fb950" stroke-width="1.5"/>
+    <text x="185" y="337" fill="#3fb950" font-size="13" font-weight="700" text-anchor="middle">D1 · RAG</text>
+    <text x="185" y="356" fill="#e6edf3" font-size="11" text-anchor="middle">policies · regulations</text>
+    <text x="185" y="373" fill="#9aa7b4" font-size="10.5" text-anchor="middle">clinician docs · cited answers</text>
+    <!-- D2 -->
+    <rect x="375" y="312" width="250" height="76" rx="12" fill="#1c2230" stroke="#a371f7" stroke-width="1.5"/>
+    <text x="500" y="337" fill="#a371f7" font-size="13" font-weight="700" text-anchor="middle">D2 · Memory</text>
+    <text x="500" y="356" fill="#e6edf3" font-size="11" text-anchor="middle">organization · clinician history</text>
+    <text x="500" y="373" fill="#9aa7b4" font-size="10.5" text-anchor="middle">previous verifications</text>
+    <!-- D4 -->
+    <rect x="690" y="312" width="250" height="76" rx="12" fill="#1c2230" stroke="#f778ba" stroke-width="1.5"/>
+    <text x="815" y="337" fill="#f778ba" font-size="13" font-weight="700" text-anchor="middle">D4 · Connectors (MCP)</text>
+    <text x="815" y="356" fill="#e6edf3" font-size="11" text-anchor="middle">Credential · Government APIs</text>
+    <text x="815" y="373" fill="#9aa7b4" font-size="10.5" text-anchor="middle">HRMS · Email · OCR</text>
+
+    <!-- data stores -->
+    <rect x="60" y="444" width="250" height="52" rx="10" fill="#161b22" stroke="#2a3340"/>
+    <text x="185" y="467" fill="#9aa7b4" font-size="11" text-anchor="middle">PostgreSQL + pgvector</text>
+    <text x="185" y="483" fill="#9aa7b4" font-size="10.5" text-anchor="middle">docs · embeddings · credential records</text>
+    <rect x="375" y="444" width="250" height="52" rx="10" fill="#161b22" stroke="#2a3340"/>
+    <text x="500" y="467" fill="#9aa7b4" font-size="11" text-anchor="middle">Redis</text>
+    <text x="500" y="483" fill="#9aa7b4" font-size="10.5" text-anchor="middle">memory + session + semantic cache</text>
+    <rect x="690" y="444" width="250" height="52" rx="10" fill="#161b22" stroke="#2a3340"/>
+    <text x="815" y="467" fill="#9aa7b4" font-size="11" text-anchor="middle">External systems (sandbox)</text>
+    <text x="815" y="483" fill="#9aa7b4" font-size="10.5" text-anchor="middle">Gov registry · HRMS · Email · OCR</text>
+
+    <!-- egress -->
+    <rect x="60" y="546" width="880" height="34" rx="8" fill="#1c2230" stroke="#e3604a"/>
+    <text x="500" y="568" fill="#e6edf3" font-size="12" text-anchor="middle">Egress (D5): citation &amp; hallucination check · PHI mask on output · RBAC filter · immutable audit log</text>
+
+    <!-- tracing rail -->
+    <rect x="60" y="604" width="880" height="30" rx="8" fill="rgba(227,96,74,0.08)" stroke="#e3604a" stroke-dasharray="4 4"/>
+    <text x="500" y="624" fill="#e3604a" font-size="11.5" text-anchor="middle">D5 · LangSmith trace spans every step → tokens · cost · latency · faithfulness scores</text>
+
+    <!-- arrows -->
+    <line x1="500" y1="60" x2="500" y2="110" stroke="#9aa7b4" stroke-width="1.6" marker-end="url(#arr)"/>
+    <line x1="500" y1="146" x2="500" y2="176" stroke="#9aa7b4" stroke-width="1.6" marker-end="url(#arr)"/>
+    <!-- orchestrator to services -->
+    <line x1="430" y1="250" x2="200" y2="310" stroke="#9aa7b4" stroke-width="1.4" marker-end="url(#arr)"/>
+    <line x1="500" y1="250" x2="500" y2="310" stroke="#9aa7b4" stroke-width="1.4" marker-end="url(#arr)"/>
+    <line x1="570" y1="250" x2="800" y2="310" stroke="#9aa7b4" stroke-width="1.4" marker-end="url(#arr)"/>
+    <!-- /invoke tags -->
+    <text x="300" y="282" fill="#58a6ff" font-size="10" text-anchor="middle">/invoke</text>
+    <text x="512" y="284" fill="#58a6ff" font-size="10" text-anchor="middle">/invoke</text>
+    <text x="700" y="282" fill="#58a6ff" font-size="10" text-anchor="middle">/invoke</text>
+    <!-- services to stores -->
+    <line x1="185" y1="388" x2="185" y2="442" stroke="#9aa7b4" stroke-width="1.2" marker-end="url(#arr)"/>
+    <line x1="500" y1="388" x2="500" y2="442" stroke="#9aa7b4" stroke-width="1.2" marker-end="url(#arr)"/>
+    <line x1="815" y1="388" x2="815" y2="442" stroke="#9aa7b4" stroke-width="1.2" marker-end="url(#arr)"/>
+    <!-- response back -->
+    <line x1="655" y1="214" x2="905" y2="214" stroke="#2dd4bf" stroke-width="1.3" marker-end="url(#arr)" stroke-dasharray="5 4"/>
+    <line x1="905" y1="214" x2="905" y2="546" stroke="#2dd4bf" stroke-width="1.3" stroke-dasharray="5 4"/>
+    <text x="917" y="380" fill="#2dd4bf" font-size="10" text-anchor="middle" transform="rotate(90 917 380)">verified result → egress</text>
+  </svg>
+  <p class="note" style="margin-top:10px"><b style="color:var(--accent)">Read it top-down:</b> a document upload or question enters through D5 ingress (auth + RBAC + PHI redaction) → the D3 orchestrator runs the <b>Document</b>, <b>Verification</b>, <b>Compliance</b> and <b>Report</b> agents, reading D2 history and calling D1 (policies) and/or D4 (credential/government APIs, OCR, HRMS) over <code>/invoke</code> → it composes a cited, verified result → D5 masks PHI, validates &amp; logs on egress → D2 stores the verification. Every box is a standalone product; the arrows are just <code>/invoke</code> and tool calls.</p>
+</div>
+
+<div class="band">
+  <h2>The four agents — how D3 decomposes verification</h2>
+  <div class="agents">
+    <div><b>Document Agent</b><span>Ingests the upload, runs OCR + face/signature checks, extracts structured fields (name, license #, issue/expiry dates) and classifies the document type.</span></div>
+    <div><b>Verification Agent</b><span>Cross-checks extracted fields against D1 policies and D4 authoritative sources (credential + government APIs); flags mismatches, expiry and forgery signals.</span></div>
+    <div><b>Compliance Agent</b><span>Evaluates a clinician/org against the required credential set and regulations (HIPAA, licensure) — surfaces gaps, expiries and non-conformance.</span></div>
+    <div><b>Report Agent</b><span>Composes the compliance report / AI summary / credential timeline with citations, and routes notifications to HR via Email/HRMS.</span></div>
+  </div>
+</div>
+
+<div class="band">
+  <h2>Example Flows — how the sample questions travel through the system</h2>
+  <div class="key">
+    <span><i class="p-u" style="background:var(--u)">U</i>User</span>
+    <span><i class="p-d5" style="background:var(--d5)">D5</i>Security/Obs</span>
+    <span><i class="p-d3" style="background:var(--d3)">D3</i>Agents</span>
+    <span><i class="p-d2" style="background:var(--d2)">D2</i>Memory</span>
+    <span><i class="p-d1" style="background:var(--d1)">D1</i>RAG</span>
+    <span><i class="p-d4" style="background:var(--d4)">D4</i>Connectors</span>
+    <span><i class="p-h" style="background:var(--h)">H</i>Human</span>
+  </div>
+
+  <div class="ucgrid" style="margin-top:14px">
+
+    <!-- UC0 upload -->
+    <div class="uc">
+      <h3>0 · Upload &amp; verify a credential (core pipeline)</h3>
+      <div class="q">A clinician uploads a nursing license.</div>
+      <ul class="steps">
+        <li><span class="pill p-u">U</span>Clinician/HR uploads a license document.</li>
+        <li><span class="pill p-d5">D5</span>Ingress: auth + RBAC + PHI redaction + consent.</li>
+        <li><span class="pill p-d4">D4</span>OCR extracts fields; face + signature checks run.</li>
+        <li><span class="pill p-d1">D1</span>Embed + RAG the matching licensure policy.</li>
+        <li><span class="pill p-d3">D3</span>Verification Agent cross-checks fields vs policy.</li>
+        <li><span class="pill p-d4">D4</span>Government API confirms the license is genuine &amp; active.</li>
+        <li><span class="pill p-d3">D3</span>Report Agent writes the compliance record.</li>
+        <li><span class="pill p-d4">D4</span>Notify HR via Email/HRMS; D5 logs the action.</li>
+      </ul>
+    </div>
+
+    <!-- UC1 -->
+    <div class="uc">
+      <h3>1 · Expiry check (verification read)</h3>
+      <div class="q">“Is this nursing license expired?”</div>
+      <ul class="steps">
+        <li><span class="pill p-u">U</span>User asks about a specific license.</li>
+        <li><span class="pill p-d5">D5</span>Ingress validation + RBAC (may they view it?).</li>
+        <li><span class="pill p-d2">D2</span>Recalls the clinician &amp; prior verifications.</li>
+        <li><span class="pill p-d3">D3</span>Verification Agent reads the stored expiry date.</li>
+        <li><span class="pill p-d4">D4</span>Optionally re-checks the government registry for currency.</li>
+        <li><span class="pill p-d5">D5</span>Egress: answer cited to the record/source; logged.</li>
+        <li><span class="pill p-u">U</span>“Expired on 12 Mar — renewal required.”</li>
+      </ul>
+    </div>
+
+    <!-- UC2 -->
+    <div class="uc">
+      <h3>2 · Source comparison (verify vs authority)</h3>
+      <div class="q">“Compare uploaded certificate with government records.”</div>
+      <ul class="steps">
+        <li><span class="pill p-u">U</span>User requests a source-of-truth comparison.</li>
+        <li><span class="pill p-d5">D5</span>Ingress validation + PHI handling.</li>
+        <li><span class="pill p-d3">D3</span>Document Agent loads OCR'd fields from the upload.</li>
+        <li><span class="pill p-d4">D4</span>Government API returns the authoritative record.</li>
+        <li><span class="pill p-d3">D3</span>Verification Agent diffs fields; flags mismatches.</li>
+        <li><span class="pill p-d5">D5</span>Egress: every match/mismatch cited to its source; logged.</li>
+        <li><span class="pill p-u">U</span>“Name &amp; number match; issue date differs — flagged.”</li>
+      </ul>
+    </div>
+
+    <!-- UC3 -->
+    <div class="uc">
+      <h3>3 · Missing credentials (compliance gap)</h3>
+      <div class="q">“Show missing credentials for Dr. John.”</div>
+      <ul class="steps">
+        <li><span class="pill p-u">U</span>HR asks for a clinician's gaps.</li>
+        <li><span class="pill p-d5">D5</span>Ingress validation + RBAC (HR scope).</li>
+        <li><span class="pill p-d2">D2</span>Loads Dr. John's org, role &amp; verification history.</li>
+        <li><span class="pill p-d1">D1</span>Retrieves the required credential set for the role.</li>
+        <li><span class="pill p-d3">D3</span>Compliance Agent diffs required vs held → gaps + expiries.</li>
+        <li><span class="pill p-d5">D5</span>Egress: PHI-safe list, cited to policy; logged.</li>
+        <li><span class="pill p-u">U</span>“Missing: BLS cert; HIPAA training expired.”</li>
+      </ul>
+    </div>
+
+    <!-- UC4 -->
+    <div class="uc">
+      <h3>4 · Compliance report (multi-source + notify)</h3>
+      <div class="q">“Generate compliance report.”</div>
+      <ul class="steps">
+        <li><span class="pill p-u">U</span>Compliance officer requests an org report.</li>
+        <li><span class="pill p-d5">D5</span>Ingress flags a downstream notify action.</li>
+        <li><span class="pill p-d2">D2</span>Loads org roster &amp; latest verification states.</li>
+        <li><span class="pill p-d1">D1</span>Retrieves the applicable regulations.</li>
+        <li><span class="pill p-d3">D3</span>Compliance + Report Agents assemble status per clinician.</li>
+        <li><span class="pill p-h">H</span>Human-in-the-loop: officer reviews before sending.</li>
+        <li><span class="pill p-d4">D4</span>On approval, HRMS/Email delivers the report.</li>
+        <li><span class="pill p-d5">D5</span>Egress + immutable audit log of the report.</li>
+      </ul>
+    </div>
+
+    <!-- UC5 -->
+    <div class="uc">
+      <h3>5 · Adaptation decision (design-time)</h3>
+      <div class="q">Internal: “Why is a verification wrong / too slow / too expensive?”</div>
+      <ul class="steps">
+        <li><span class="pill p-d5">D5</span>Eval flags a faithfulness, cost or latency problem.</li>
+        <li><span class="pill p-d3">D3</span>Try better prompt + OCR/retrieval first (cheapest fix).</li>
+        <li><span class="pill p-d1">D1</span>If it's a policy gap → fix chunking / add regulations / re-index.</li>
+        <li><span class="pill p-d3">D3</span>If it's a routing issue → tier the model (cheap ↔ vision/frontier).</li>
+        <li><span class="pill p-d5">D5</span>Only if a narrow, repeated extraction stays wrong → fine-tune.</li>
+        <li><span class="pill p-d5">D5</span>Prove the change on the golden set before shipping.</li>
+      </ul>
+      <p class="note" style="margin-top:8px">Adaptation spectrum: prompt → RAG/OCR → routing → fine-tune. Climb only when the cheaper rung is exhausted.</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="band">
+  <h2>Platform features — the doc-AI layer (from the SRS)</h2>
+  <div class="feat">
+    <div><b>OCR</b><span>Extract text &amp; fields from scanned licenses, certs and vaccination records — owned by the Document Agent (D3) over a D4 OCR tool.</span></div>
+    <div><b>Face verification</b><span>Match the photo on the credential to the clinician's identity record; a vision-model check with a confidence threshold.</span></div>
+    <div><b>Signature detection</b><span>Detect and validate signatures/seals on documents; flag missing or suspicious marks for human review.</span></div>
+    <div><b>Expiry alerts</b><span>Scheduled scan of stored credentials; D4 Email/HRMS notifies HR ahead of expiry. Backed by D2 history.</span></div>
+    <div><b>AI summary</b><span>Report Agent (D3) produces a plain-language, cited summary of a clinician's or org's compliance status.</span></div>
+    <div><b>Credential timeline</b><span>Chronological view of uploads, verifications, renewals and alerts per clinician — assembled from D2 memory.</span></div>
+  </div>
+</div>
+
+<div class="band">
+  <h2>Two cross-cutting concerns — and who owns them</h2>
+  <div class="ucgrid">
+    <div class="uc">
+      <h3 style="color:var(--d5)">HIPAA · PHI/PII masking · RBAC</h3>
+      <div class="q" style="color:var(--muted)">Users only ever see what their role and org allow — and PHI never leaks into logs or answers.</div>
+      <ul class="steps">
+        <li><span class="pill p-d5">D5</span><b>Owns policy.</b> Auth at ingress, PHI redaction in/out, immutable audit log, tenant isolation, monitoring.</li>
+        <li><span class="pill p-d1">D1</span>Permission-aware retrieval — org/role ACLs so restricted docs never enter context.</li>
+        <li><span class="pill p-d4">D4</span>Connectors run with least-privilege scopes; government/HRMS calls are minimal-disclosure.</li>
+      </ul>
+    </div>
+    <div class="uc">
+      <h3 style="color:var(--d3)">Model routing (which LLM per task)</h3>
+      <div class="q" style="color:var(--muted)">Cheap model for simple lookups; a vision/frontier model for OCR, face &amp; signature checks.</div>
+      <ul class="steps">
+        <li><span class="pill p-d3">D3</span><b>Makes the call</b> at runtime — routing is just another orchestration decision.</li>
+        <li><span class="pill p-d5">D5</span><b>Owns the policy</b> — cost/quality tiers, fallback chains, proving it saves money without hurting accuracy.</li>
+        <li><span class="pill p-u">Stack</span>OpenAI + Claude behind one interface; hallucination eval scores each variant in LangSmith.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="band">
+  <h2>Productionization reality — from mock records to live at a customer</h2>
+  <p class="note" style="margin-bottom:12px">The POC builds on synthetic clinician records and sandbox APIs so no one is blocked. But "swap mocks for real" is the hardest mile — this ladder is what turns the demo into a compliant deployment.</p>
+  <div class="ladder">
+    <div><b>1 · Mock demo</b><span>End-to-end on synthetic records + sandbox government/HRMS APIs. The POC deliverable.</span></div>
+    <div><b>2 · Real data + auth</b><span>One real connector (e.g. a government registry), real OAuth/secrets, real schema quirks &amp; rate limits.</span></div>
+    <div><b>3 · Security review</b><span>HIPAA controls, RBAC, tenant isolation, PHI masking, least-privilege scopes, audit log, data residency.</span></div>
+    <div><b>4 · Scale &amp; cost</b><span>Concurrency, streaming, p95 latency, Redis caching, model tiering, a cost-per-verification budget that holds.</span></div>
+    <div><b>5 · Handoff</b><span>Runbooks, LangSmith dashboards, training the customer's compliance team. It survives after you leave.</span></div>
+  </div>
+</div>
+
+<div class="band">
+  <h2>Why this composes cleanly</h2>
+  <p class="note">Each domain is a black box behind one <code>/invoke</code> endpoint (plus a <code>/stream</code> variant for token/step streaming): send <code>{input, context}</code>, get back <code>{output, citations, metadata}</code>. The D3 orchestrator is the only component that knows the others exist, and it reaches them the way it reaches any tool. So each of the five products is built, tested and demoed alone on mock clinician data — and the same five, unchanged, snap together into the Compliance Platform. Going to a real customer is a config change plus the productionization ladder above: point D1 at their regulations, swap D4's mock credential/government/HRMS connectors for real tenants. No domain has to be rewritten.</p>
+</div>
+
+<div class="foot">POC 2 · AI Healthcare Compliance &amp; Credential Verification · examples run on mock / synthetic / sandbox data + one real-connector path · follows the AI FDE — Dynamisch system-design pattern</div>
+
+</body>
+</html>

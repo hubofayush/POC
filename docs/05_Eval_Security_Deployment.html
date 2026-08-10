@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D5 · Eval, Security, Deployment &amp; Observability · Learning Path</title>
+<style>
+  :root{--bg:#0e1117;--panel:#161b22;--panel2:#1c2230;--ink:#e6edf3;--muted:#9aa7b4;--line:#2a3340;--accent:#58a6ff;--dom:#e3604a;--ok:#3fb950;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5;padding:32px 26px 70px;max-width:920px;margin:0 auto}
+  a.back{color:var(--muted);font-size:12px;text-decoration:none}a.back:hover{color:var(--accent)}
+  h1{font-size:26px;margin:8px 0 2px}h1 .dot{color:var(--dom)}
+  .role{color:var(--muted);font-size:13.5px;margin-bottom:4px}
+  .goal{font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--dom);border-radius:10px;padding:12px 16px;margin:14px 0}.goal b{color:var(--dom)}
+  .prog{position:sticky;top:0;background:var(--bg);padding:12px 0 10px;z-index:5;border-bottom:1px solid var(--line);margin-bottom:8px}
+  .bar{height:10px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--dom),#f5b955);transition:width .25s}
+  .pct{font-size:12px;color:var(--muted);margin-top:6px}.pct b{color:var(--ink)}
+  .reset{float:right;font-size:11px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;cursor:pointer}
+  .week{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:16px 0}
+  .week>h2{margin:0 0 2px;font-size:16px}.week .wsub{color:var(--muted);font-size:12px;margin-bottom:10px}
+  .grp{margin:12px 0 0}.grp h4{margin:0 0 6px;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--accent)}.grp.do h4{color:var(--ok)}
+  label.task{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;padding:5px 0;border-bottom:1px dashed var(--line);cursor:pointer}
+  label.task:last-child{border-bottom:none}
+  label.task input{margin-top:3px;width:16px;height:16px;flex:none;accent-color:var(--ok);cursor:pointer}
+  label.task span{flex:1}label.task input:checked + span{color:var(--muted);text-decoration:line-through}
+  .expert{border:1px solid var(--ok);background:linear-gradient(180deg,rgba(63,185,80,.08),rgba(63,185,80,.01))}.expert>h2{color:var(--ok)}
+  .res{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-top:16px;font-size:12.5px;color:var(--muted)}
+  .res h3{color:var(--ink);font-size:13px;margin:0 0 8px}.res li{margin:3px 0}
+  .foot{color:var(--muted);font-size:11px;margin-top:26px;text-align:center}
+  code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px;color:var(--accent)}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← all domain paths</a>
+<h1><span class="dot">●</span> D5 · Eval, Security, Deployment &amp; Observability</h1>
+<div class="role">Owned product: <b>LLM Eval &amp; Observability Harness</b> · ~6–7 weeks to expert</div>
+<div class="goal"><b>Goal:</b> become the person who makes AI systems <i>trustworthy</i> — provably good (eval), safe (guardrails &amp; governance), shippable (deployment) and observable (tracing, cost, latency). You own the harness everyone else wraps their product in, and the answer to "can we actually put this in front of a customer?"</div>
+
+<a href="05_Eval_Security_Deployment_TaskGuide.html" style="display:block;text-decoration:none;background:linear-gradient(90deg,rgba(227,96,74,.10),transparent);border:1px solid var(--line);border-left:4px solid var(--dom);border-radius:10px;padding:11px 15px;margin:0 0 14px;color:var(--ink);font-size:13px"><b style="color:var(--dom)">Stuck on a hands-on task?</b> Open the <b>Task Guide</b> — step-by-step instructions, starter code and a "done when" check for every Do task. <span style="color:var(--muted)">&rarr;</span></a>
+
+<div class="prog">
+  <div class="bar"><i id="fill"></i></div>
+  <div class="pct"><b id="done">0</b>/<span id="total">0</span> done · <b id="pctnum">0%</b><span class="reset" onclick="resetAll()">reset</span></div>
+</div>
+
+<div class="week">
+  <h2>Week 1 · Evaluation foundations</h2>
+  <div class="wsub">The harness the whole team depends on.</div>
+  <div class="grp"><h4>Learn</h4>
+    <label class="task"><input type="checkbox"><span>Golden sets: building them, avoiding leakage, keeping them current.</span></label>
+    <label class="task"><input type="checkbox"><span>LLM-as-judge: rubrics, pairwise comparison, judge bias &amp; mitigations.</span></label>
+    <label class="task"><input type="checkbox"><span>RAG eval with Ragas: faithfulness, relevance, context precision/recall.</span></label>
+    <label class="task"><input type="checkbox"><span>Offline (regression) vs online eval.</span></label>
+  </div>
+  <div class="grp do"><h4>Do</h4>
+    <label class="task"><input type="checkbox"><span>Build a reusable eval harness (golden set runner + LLM-judge + Ragas) the team can drop in.</span></label>
+  </div>
+</div>
+
+<div class="week">
+  <h2>Week 2 · Agentic eval &amp; routing policy</h2>
+  <div class="wsub">Evaluating agents and proving routing pays off.</div>
+  <div class="grp"><h4>Learn</h4>
+    <label class="task"><input type="checkbox"><span>Agentic eval: task success, trajectory/step correctness, tool-call accuracy.</span></label>
+    <label class="task"><input type="checkbox"><span>Model-routing policy: cost/quality tiers, fallback chains.</span></label>
+    <label class="task"><input type="checkbox"><span>Proving routing saves money without hurting quality (the data to show a customer).</span></label>
+    <label class="task"><input type="checkbox"><span>Model-adaptation: when to recommend fine-tuning vs prompt/RAG; LoRA &amp; managed FT basics.</span></label>
+  </div>
+  <div class="grp do"><h4>Do</h4>
+    <label class="task"><input type="checkbox"><span>Add trajectory/tool-call eval to the harness (supports D3).</span></label>
+    <label class="task"><input type="checkbox"><span>Define a routing policy + show a cost-vs-quality comparison across model tiers.</span></label>
+  </div>
+</div>
+
+<div class="week">
+  <h2>Week 3 · Guardrails</h2>
+  <div class="wsub">Stopping the bad stuff at the edges.</div>
+  <div class="grp"><h4>Learn</h4>
+    <label class="task"><input type="checkbox"><span>Input/output validation; schema enforcement; refusal handling.</span></label>
+    <label class="task"><input type="checkbox"><span>Prompt-injection &amp; jailbreak defenses; defense-in-depth.</span></label>
+    <label class="task"><input type="checkbox"><span>Hallucination / citation checks on output (works with D1).</span></label>
+  </div>
+  <div class="grp do"><h4>Do</h4>
+    <label class="task"><input type="checkbox"><span>Build ingress/egress guardrails: validate I/O, block injection, verify citations.</span></label>
+  </div>
+</div>
+
+<div class="week">
+  <h2>Week 4 · Security, governance &amp; compliance</h2>
+  <div class="wsub">What enterprise buyers actually ask about.</div>
+  <div class="grp"><h4>Learn</h4>
+    <label class="task"><input type="checkbox"><span>PII detection &amp; redaction (Presidio); data minimization.</span></label>
+    <label class="task"><input type="checkbox"><span>Tenant isolation, least privilege, immutable audit logs, data residency.</span></label>
+    <label class="task"><input type="checkbox"><span>Compliance awareness: SOC2, GDPR, HIPAA basics — what they mean for an AI deployment.</span></label>
+  </div>
+  <div class="grp do"><h4>Do</h4>
+    <label class="task"><input type="checkbox"><span>Add PII redaction + an audit log to the harness; document a tenant-isolation approach.</span></label>
+  </div>
+</div>
+
+<div class="week">
+  <h2>Week 5 · Deployment</h2>
+  <div class="wsub">From "runs on my machine" to "runs for a customer."</div>
+  <div class="grp"><h4>Learn</h4>
+    <label class="task"><input type="checkbox"><span>Containerization with Docker; config &amp; secrets per environment.</span></label>
+    <label class="task"><input type="checkbox"><span>CI/CD with GitHub Actions; smoke &amp; load tests as gates.</span></label>
+    <label class="task"><input type="checkbox"><span>Model fallback/routing wired into deploy config.</span></label>
+  </div>
+  <div class="grp do"><h4>Do</h4>
+    <label class="task"><input type="checkbox"><span>Containerize the sample app; add a CI pipeline that runs eval + smoke tests on every PR.</span></label>
+  </div>
+</div>
+
+<div class="week">
+  <h2>Week 6 · Observability &amp; cost</h2>
+  <div class="wsub">You can't operate what you can't see.</div>
+  <div class="grp"><h4>Learn</h4>
+    <label class="task"><input type="checkbox"><span>Tracing LLM apps (LangSmith/Langfuse, OpenTelemetry); spans per step.</span></label>
+    <label class="task"><input type="checkbox"><span>Metrics that matter: tokens, cost, latency, error budgets, eval scores.</span></label>
+    <label class="task"><input type="checkbox"><span>Cost optimization: prompt cache + semantic cache (hit-rate vs cost), model tiering, batching.</span></label>
+    <label class="task"><input type="checkbox"><span>Latency &amp; scale: concurrency, load testing, timeouts/backpressure, p95 latency budgets.</span></label>
+  </div>
+  <div class="grp do"><h4>Do</h4>
+    <label class="task"><input type="checkbox"><span>Add end-to-end tracing + a cost/latency dashboard to the harness.</span></label>
+    <label class="task"><input type="checkbox"><span>Add a semantic cache; measure hit-rate, cost and latency savings.</span></label>
+    <label class="task"><input type="checkbox"><span>Run a load test; record p95 latency and set a budget the CI checks.</span></label>
+    <label class="task"><input type="checkbox"><span>Wire an eval quality gate that blocks a merge on regression.</span></label>
+  </div>
+</div>
+
+<div class="week expert">
+  <h2>★ Expert bar — prove the domain</h2>
+  <label class="task"><input type="checkbox"><span><b>Ship:</b> a drop-in Eval &amp; Observability Harness, demoed on its own sample app and wrappable around any of the other four products.</span></label>
+  <label class="task"><input type="checkbox"><span>Eval suite covers RAG + agent trajectory and gates merges in CI.</span></label>
+  <label class="task"><input type="checkbox"><span>Guardrails active (injection, PII, citation checks); audit logging on.</span></label>
+  <label class="task"><input type="checkbox"><span>Deployed via Docker with a live tracing + cost/latency dashboard.</span></label>
+  <label class="task"><input type="checkbox"><span><b>Teach-back:</b> 30-min brown-bag — "how we prove an AI system is safe enough to ship" — for the team.</span></label>
+</div>
+
+<div class="res">
+  <h3>Curated resources</h3>
+  <ul>
+    <li>Ragas docs — RAG metrics; LangSmith / Langfuse — tracing &amp; eval</li>
+    <li>Microsoft Presidio — PII detection &amp; redaction</li>
+    <li>OWASP Top 10 for LLM Applications — the security checklist</li>
+    <li>OpenTelemetry — tracing fundamentals</li>
+    <li>NIST AI Risk Management Framework — governance reference</li>
+    <li>Provider fine-tuning guides (OpenAI / managed LoRA) — for the adaptation call</li>
+  </ul>
+</div>
+
+<div class="foot">Dynamisch · D5 Eval, Security &amp; Deployment · all tasks run on mock / synthetic data · progress saved in this browser</div>
+
+<script>
+  const KEY="fde_path_d5";
+  const boxes=[...document.querySelectorAll('label.task input')];
+  boxes.forEach((b,i)=>b.dataset.i=i);
+  document.getElementById('total').textContent=boxes.length;
+  function save(){localStorage.setItem(KEY,JSON.stringify(boxes.filter(b=>b.checked).map(b=>+b.dataset.i)))}
+  function render(){const n=boxes.filter(b=>b.checked).length;const p=boxes.length?Math.round(n/boxes.length*100):0;
+    document.getElementById('done').textContent=n;document.getElementById('pctnum').textContent=p+'%';document.getElementById('fill').style.width=p+'%';}
+  function load(){try{const s=JSON.parse(localStorage.getItem(KEY)||'[]');s.forEach(i=>{if(boxes[i])boxes[i].checked=true})}catch(e){}}
+  function resetAll(){if(confirm('Clear all progress on this page?')){boxes.forEach(b=>b.checked=false);save();render()}}
+  boxes.forEach(b=>b.addEventListener('change',()=>{save();render()}));
+  load();render();
+</script>
+</body>
+</html>

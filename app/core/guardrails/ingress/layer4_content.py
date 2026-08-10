@@ -1,6 +1,6 @@
 """
-app.core.guardrails.layer4_content
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+app.core.guardrails.ingress.layer4_content
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Layer 4 – Semantic Content / Topic Scope Guards
 
 These guards operate on the *meaning* of the input rather than its structure
