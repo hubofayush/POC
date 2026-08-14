@@ -17,20 +17,21 @@ class Settings(BaseSettings):
 
     #security
     JWT_ALGORITHM : str = "RS256"
-    JWT_ACCESS_EXPIRE_MINUTE :  int = 15
+    JWT_ACCESS_EXPIRE_MINUTE :  int = 30
     JWT_REFRESH_EXPIRE_DAYS: int = 7
     JWT_PRIVATE_KEY_PATH: str = str(Path("keys/private.pem"))
     JWT_PUBLIC_KEY_PATH: str = str(Path("keys/public.pem"))
     JWT_ISSUER: str = "d5-security-layer"
     JWT_AUDIENCE: str = "d5-gateway"
     AUTH_MAX_FAILED_ATTEMPTS: int = 5
-    AUTH_LOCKOUT_MINUTES: int = 15
+    AUTH_LOCKOUT_MINUTES: int = 30
 
     # CORS — comma-separated allowlist of origins; empty = same-origin only
     CORS_ALLOW_ORIGINS: str = ""
 
     # Server-level cap on the raw request body in bytes (reject early, before parsing)
     MAX_REQUEST_BODY_BYTES: int = 65536
+
 
     # Per-IP rate limits for credential endpoints (per-account lockout is separate)
     AUTH_LOGIN_RATE_LIMIT: str = "100/minute"
@@ -55,6 +56,12 @@ class Settings(BaseSettings):
     # Deny requests that omit explicit consent_granted=true (default-deny in prod)
     GUARDRAIL_CONSENT_DEFAULT_GRANTED: bool = False
 
+    # Semantic Injection Guard (Layer 2.5 – Embedding Similarity)
+    GUARDRAIL_SEMANTIC_ENABLED: bool = True
+    GUARDRAIL_SEMANTIC_MODEL: str = "all-MiniLM-L6-v2"
+    GUARDRAIL_SEMANTIC_THRESHOLD: float = 0.65
+    GUARDRAIL_SEMANTIC_MODE: str = "block"        # "block" | "warn"
+
     # LLM-based Guardrail Settings (Layer 5 – Ingress)
     LLM_GUARDRAIL_ENABLED: bool = True
     LLM_GUARDRAIL_PROVIDER: str = "gemini"    # "gemini" | "openai" | "ollama" | "mock"
@@ -62,6 +69,7 @@ class Settings(BaseSettings):
     LLM_GUARDRAIL_MODEL: str = "gemini-3.1-flash-lite"
     LLM_GUARDRAIL_MODE: str = "block"          # "block" | "warn"
     LLM_GUARDRAIL_TIMEOUT_SEC: float = 2.0     # Maximum execution timeout in seconds
+    LLM_GUARDRAIL_FAIL_OPEN: bool = False      # False = fail closed (block) if evaluator unavailable
 
     # ── Egress / Output Guardrails ──────────────────────────────────────────
     # Hard ceiling on raw UTF-8 bytes in the LLM output field (default 64 KB)
@@ -90,6 +98,18 @@ class Settings(BaseSettings):
     D3_RETRY_BASE_DELAY_SEC: float = 0.25           # First backoff base (doubles per retry)
     D3_CIRCUIT_FAILURE_THRESHOLD: int = 5           # Consecutive failures before the breaker opens
     D3_CIRCUIT_RESET_SEC: float = 30.0              # Time in open state before a half-open probe
+
+    # File Upload Settings (via /invoke multipart)
+    MAX_UPLOAD_FILE_BYTES: int = 10 * 1024 * 1024  # 10 MB hard ceiling per file
+    # Allowed file extensions (lower-case). Screenshots = png/jpg.
+    ALLOWED_FILE_EXTENSIONS: str = "pdf,csv,png,jpg,jpeg"
+    # MIME types that map to each allowed extension
+    ALLOWED_MIME_TYPES: str = (
+        "application/pdf,"
+        "text/csv,application/csv,"
+        "image/png,"
+        "image/jpeg"
+    )
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
     

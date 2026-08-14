@@ -88,6 +88,39 @@ class Trace(Base):
     spans_json: Mapped[str] = mapped_column(Text, default="[]")
 
 
+class Document(Base):
+    """
+    Record of every file uploaded through POST /invoke.
+
+    Tracks the guardrail outcome, D1 index reference, and tenant scope
+    so uploads can be queried, re-indexed, or audited per org.
+
+    upload_status lifecycle:
+        pending  → guardrails running / D1 call in flight
+        indexed  → D1 confirmed embedding
+        rejected → blocked by a guardrail (file never forwarded to D1)
+    """
+    __tablename__ = "documents"
+
+    doc_id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    uploader_id: Mapped[str] = mapped_column(String(100), index=True)
+    org: Mapped[str] = mapped_column(String(100), index=True, default="unknown")
+    filename: Mapped[str] = mapped_column(String(512), default="")
+    file_type: Mapped[str] = mapped_column(String(20), index=True, default="")   # pdf | csv | png | jpg
+    file_size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    upload_status: Mapped[str] = mapped_column(
+        String(20), index=True, default="pending"
+    )  # pending | indexed | rejected
+    guardrail_result: Mapped[str] = mapped_column(String(20), default="pending")  # passed | blocked
+    d1_doc_id: Mapped[str | None] = mapped_column(String(100), nullable=True)     # ID returned by D1
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True
+    )
+    trace_id: Mapped[str] = mapped_column(String(36), index=True, default="")
+
+
 class User(Base):
     """
     Application user with argon2 password hashing and brute-force lockout state.
@@ -151,11 +184,54 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Yields an AsyncSession bound to the active tenant context.
+
+    On PostgreSQL, executes `SET LOCAL app.current_tenant_id = :tenant`
+    so PostgreSQL Row-Level Security (RLS) policies enforce engine-level isolation.
+    """
+    from app.core.security.tenant_context import get_current_tenant
+
     async with async_session() as session:
+        tenant = get_current_tenant()
+        if tenant and "postgresql" in settings.DATABASE_URL:
+            from sqlalchemy import text
+            await session.execute(
+                text("SET LOCAL app.current_tenant_id = :org"),
+                {"org": tenant.org_id},
+            )
+            await session.execute(
+                text("SET LOCAL app.is_admin = :is_admin"),
+                {"is_admin": "true" if tenant.is_admin else "false"},
+            )
         try:
             yield session
         finally:
             await session.close()
+
+
+def generate_pg_rls_ddl() -> str:
+    """
+    Generates PostgreSQL Row-Level Security (RLS) DDL statements for production migration scripts.
+    """
+    return """
+-- PostgreSQL Row-Level Security (RLS) Policies for D5 Tenant Isolation
+
+-- 1. Audit Log Table
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_audit_log_isolation ON audit_log
+    USING (user_org = current_setting('app.current_tenant_id', true) OR current_setting('app.is_admin', true) = 'true');
+
+-- 2. Tracing Spans Table
+ALTER TABLE traces ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_traces_isolation ON traces
+    USING (org = current_setting('app.current_tenant_id', true) OR current_setting('app.is_admin', true) = 'true');
+
+-- 3. Document Metadata Table
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_documents_isolation ON documents
+    USING (org = current_setting('app.current_tenant_id', true) OR current_setting('app.is_admin', true) = 'true');
+"""
 
 
 async def create_tables():

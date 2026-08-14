@@ -13,6 +13,7 @@ from app.middleware.error_handler import register_error_handlers
 from app.middleware.http_metrics import HttpMetricsMiddleware
 from app.middleware.rate_limit import add_rate_limiting
 from app.middleware.request_log import RequestLogMiddleware
+from app.middleware.tenant_isolation import TenantIsolationMiddleware
 from app.models.database import create_tables, engine
 
 logger = get_logger(__name__)
@@ -43,6 +44,7 @@ if _cors_origins:
 
 register_error_handlers(app)
 app.add_middleware(BodySizeLimitMiddleware)
+app.add_middleware(TenantIsolationMiddleware)  # must precede rate limiting
 add_rate_limiting(app)
 app.add_middleware(HttpMetricsMiddleware)  # outermost: captures all paths/statuses
 app.add_middleware(RequestLogMiddleware)
@@ -85,6 +87,7 @@ async def metrics_endpoint():
     
 from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.documents import router as documents_router
 from app.api.v1.invoke import router as invoke_router
 from app.api.v1.traces import router as traces_router
 
@@ -92,3 +95,4 @@ app.include_router(auth_router)
 app.include_router(audit_router)
 app.include_router(traces_router)
 app.include_router(invoke_router)
+app.include_router(documents_router)

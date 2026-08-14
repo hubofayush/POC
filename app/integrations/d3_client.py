@@ -103,6 +103,68 @@ class D3Client:
 
     async def _mock_provider(self, trace_id: str, input: str, context: dict) -> dict:
         text = input.lower()
+        file_type = context.get("_file_type", "")
+        file_name = context.get("_file_name", "upload")
+
+        # ── File-based responses ──────────────────────────────────────────
+        if file_type in ("png", "jpg", "jpeg"):
+            return {
+                "output": (
+                    f"Screenshot '{file_name}' received and analyzed via OCR. "
+                    "Extracted fields — License Number: RN-112233, Issued: 2022-01-15, "
+                    "Expires: 2026-01-15, State: California. No anomalies detected. "
+                    "Compliance status: ACTIVE."
+                ),
+                "citations": [
+                    {
+                        "file_name": file_name,
+                        "page": 1,
+                        "chunk_id": "ocr_extract_001",
+                        "text": "OCR extracted from screenshot — all fields verified.",
+                    }
+                ],
+                "tier": "frontier",
+            }
+
+        if file_type == "pdf":
+            return {
+                "output": (
+                    f"PDF document '{file_name}' processed. "
+                    "Provider credentialing verification complete. "
+                    "License status: ACTIVE. Board certification: verified. "
+                    "No adverse actions found. Compliance status: ACTIVE."
+                ),
+                "citations": [
+                    {
+                        "file_name": file_name,
+                        "page": 1,
+                        "chunk_id": "pdf_chunk_001",
+                        "text": "License status: ACTIVE. Expiration: 12/31/2026.",
+                    }
+                ],
+                "tier": "cheap",
+            }
+
+        if file_type == "csv":
+            return {
+                "output": (
+                    f"CSV file '{file_name}' analyzed. "
+                    "Processed 42 credential records. "
+                    "Compliant: 38 | Expiring within 30 days: 3 | Expired: 1. "
+                    "Action required for 4 clinicians."
+                ),
+                "citations": [
+                    {
+                        "file_name": file_name,
+                        "page": None,
+                        "chunk_id": "csv_summary_001",
+                        "text": "Batch credential compliance summary.",
+                    }
+                ],
+                "tier": "cheap",
+            }
+
+        # ── Text-only responses (original behaviour) ──────────────────────
         if "expired" in text or "expiry" in text:
             return {
                 "output": "License RN-987654 expired on March 12, 2026. Renewal due within 30 days.",
@@ -122,7 +184,7 @@ class D3Client:
             }
         if "missing" in text:
             return {
-                "output": "Missing: BLS Certification, HIPAA Training (expired). Action required.",
+                "output": "Missing: BLS Certification, HIPAA Training expired. Action required.",
                 "citations": [
                     {
                         "file_name": "MOCK-POLICY-SURGEON-REQS.pdf",
@@ -235,5 +297,30 @@ class D3Client:
             f"D3 downstream call failed after {attempt} attempt(s): {last_error}"
         ) from last_error
 
+    async def stream_call_invoke(
+        self, trace_id: str, input: str, context: dict, chunk_size: int = 4
+    ):
+        """
+        Asynchronously streams output from D3 downstream service in chunks.
+
+        Yields tuples of (chunk_text, final_response_dict | None).
+        While streaming tokens, final_response_dict is None.
+        On final yield, chunk_text is "" and final_response_dict contains complete metadata & citations.
+        """
+        response_dict = await self.call_invoke(trace_id=trace_id, input=input, context=context)
+        output_text = response_dict.get("output", "")
+
+        # Split output into word chunks to simulate real-time token streaming
+        words = output_text.split(" ")
+        for i in range(0, len(words), chunk_size):
+            chunk = " ".join(words[i : i + chunk_size])
+            if i + chunk_size < len(words):
+                chunk += " "
+            yield chunk, None
+            await asyncio.sleep(0.03)  # simulate network/LLM generation latency (30ms per chunk)
+
+        yield "", response_dict
+
 
 d3_client = D3Client()
+

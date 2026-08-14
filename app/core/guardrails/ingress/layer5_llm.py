@@ -198,22 +198,29 @@ class LLMEvaluatorGuard(BaseGuardrail):
                     )
                 # Use local zero-shot safety engine fallback
                 eval_result = self._evaluate_zero_shot_fallback(input_text)
-        except (ValidationError, ValueError, TypeError, json.JSONDecodeError) as err:
-            logger.warning(
-                "guardrail.llm_evaluator.fallback",
-                error=str(err),
-                provider=self.provider,
-                msg="Evaluator response invalid; falling back to local zero-shot engine",
-            )
-            eval_result = self._evaluate_zero_shot_fallback(input_text)
         except Exception as err:
             logger.warning(
                 "guardrail.llm_evaluator.fallback",
                 error=str(err),
                 provider=self.provider,
-                msg="Falling back to local zero-shot safety engine",
+                msg="Evaluator failed; running local zero-shot fallback engine",
             )
-            eval_result = self._evaluate_zero_shot_fallback(input_text)
+            try:
+                eval_result = self._evaluate_zero_shot_fallback(input_text)
+            except Exception as fallback_err:
+                logger.error(
+                    "guardrail.llm_evaluator.failed",
+                    error=str(fallback_err),
+                )
+                if not settings.LLM_GUARDRAIL_FAIL_OPEN and settings.LLM_GUARDRAIL_MODE == "block":
+                    return GuardrailResult(
+                        passed=False,
+                        code="LLM_EVALUATOR_UNAVAILABLE",
+                        message="LLM safety evaluator unavailable; request rejected by fail-closed policy.",
+                        layer="ingress.layer5.llm_evaluator",
+                        details={"error": str(fallback_err)},
+                    )
+                eval_result = {"safe": True, "category": "SAFE", "reason": "Fallback failed; fail-open mode", "confidence": 0.0}
 
         is_safe = eval_result.get("safe", True)
         category = eval_result.get("category", "SAFE")

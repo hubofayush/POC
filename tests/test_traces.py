@@ -49,7 +49,8 @@ async def test_trace_persisted_and_completed(client):
         assert row.action == "invoke"
         assert row.end_time is not None
         spans = __import__("json").loads(row.spans_json)
-        assert {s["name"] for s in spans} == {"ingress_guardrails_pipeline", "d3_client_execution"}
+        assert {s["name"] for s in spans} == {"ingress_guardrails_pipeline", "d3_client_execution", "egress_guardrails_pipeline"}
+
         assert all(s["end_time"] is not None for s in spans)
 
 

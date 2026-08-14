@@ -100,9 +100,10 @@ class AuditRepository:
                 trace_id=trace_id,
                 details=details,
             )
-            # Chain link: last entry's hash becomes this entry's prev_hash
+            # Chain link: last entry's hash for THIS tenant becomes this entry's prev_hash
             prev_hash = await session.scalar(
                 select(AuditEntry.entry_hash)
+                .where(AuditEntry.user_org == user_org)
                 .order_by(desc(AuditEntry.timestamp), desc(AuditEntry.entry_id))
                 .limit(1)
             ) or ""
@@ -124,22 +125,25 @@ class AuditRepository:
             await session.commit()
             return entry.entry_id
 
-    async def verify_chain(self) -> dict[str, Any]:
-        """Replays the hash chain and reports integrity.
+    async def verify_chain(self, org: str | None = None) -> dict[str, Any]:
+        """Replays the hash chain (optionally scoped per tenant org) and reports integrity.
 
         Returns:
             {"valid": bool, "entries_checked": int, "first_broken_entry_id": str | None}
         """
         async with async_session() as session:
-            rows = (
-                await session.execute(
-                    select(AuditEntry)
-                    .order_by(AuditEntry.timestamp, AuditEntry.entry_id)
-                )
-            ).scalars().all()
+            stmt = select(AuditEntry)
+            if org:
+                stmt = stmt.where(AuditEntry.user_org == org)
+            stmt = stmt.order_by(AuditEntry.timestamp, AuditEntry.entry_id)
 
-            prev_hash = ""
+            rows = (await session.execute(stmt)).scalars().all()
+
+            # Map of org_id -> prev_hash for multi-tenant chain verification
+            prev_hashes: dict[str, str] = {}
             for entry in rows:
+                tenant_key = entry.user_org if org is None else org
+                prev_hash = prev_hashes.get(tenant_key, "")
                 expected = self._compute_hash(
                     prev_hash,
                     entry.entry_id,
@@ -155,9 +159,10 @@ class AuditRepository:
                         "entries_checked": len(rows),
                         "first_broken_entry_id": entry.entry_id,
                     }
-                prev_hash = entry.entry_hash
+                prev_hashes[tenant_key] = entry.entry_hash
 
             return {"valid": True, "entries_checked": len(rows), "first_broken_entry_id": None}
+
 
     async def find_entries(
         self,
