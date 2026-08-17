@@ -169,3 +169,62 @@ class LanguageGuard(BaseGuardrail):
                 layer="ingress.layer4.language",
                 details=details,
             )
+
+
+# ---------------------------------------------------------------------------
+# 3. Denied Topics Guard (deny-list, org-agnostic)
+# ---------------------------------------------------------------------------
+
+class DeniedTopicGuard(BaseGuardrail):
+    """
+    Rejects inputs that match configured denied topics (deny-list).
+
+    Topics are configured via settings.GUARDRAIL_DENIED_TOPICS (comma
+    separated keywords) and matched against the normalized input as
+    substrings. This complements TopicScopeGuard's allow-list: scope is a
+    soft warn, denied topics are a hard block.
+
+    Mode is controlled by settings.GUARDRAIL_DENIED_TOPIC_MODE:
+      "block" – reject the request with 422 (default for denied topics)
+      "warn"  – log the finding and pass
+    """
+    name = "denied_topic"
+
+    def __init__(self) -> None:
+        self.denied = [
+            kw.strip().lower()
+            for kw in settings.GUARDRAIL_DENIED_TOPICS.split(",")
+            if kw.strip()
+        ]
+
+    async def check(
+        self, input_text: str, context: dict[str, Any], user: dict[str, Any]
+    ) -> GuardrailResult:
+        if not self.denied:
+            return PASS
+
+        lower = input_text.lower()
+        hits = [kw for kw in self.denied if kw in lower]
+
+        if not hits:
+            return PASS
+
+        msg = f"Input matches denied topic(s): {', '.join(hits)}."
+        details = {"denied_topics": hits}
+
+        if settings.GUARDRAIL_DENIED_TOPIC_MODE == "block":
+            return GuardrailResult(
+                passed=False,
+                code="DENIED_TOPIC",
+                message=msg,
+                layer="ingress.layer4.denied_topic",
+                details=details,
+            )
+        logger.warning("guardrail.denied_topic.warn", **details, user_id=user.get("sub"))
+        return GuardrailResult(
+            passed=True,
+            code="DENIED_TOPIC_WARNED",
+            message=msg,
+            layer="ingress.layer4.denied_topic",
+            details=details,
+        )

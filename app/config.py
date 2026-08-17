@@ -74,6 +74,7 @@ class Settings(BaseSettings):
 
     # Denied Topics Guard (Layer 4 – deny-list, comma-separated keywords)
     GUARDRAIL_DENIED_TOPICS: str = ""
+    GUARDRAIL_DENIED_TOPIC_MODE: str = "block"    # "block" | "warn"
 
     # Word filter (profanity) — ingress blocks, egress masks
     GUARDRAIL_WORD_FILTER_ENABLED: bool = True

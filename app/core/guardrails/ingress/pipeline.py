@@ -41,6 +41,7 @@ from app.core.guardrails.ingress.layer3_policy import (
 )
 from app.core.guardrails.ingress.layer3_tenant_guard import TenantIsolationGuard
 from app.core.guardrails.ingress.layer4_content import (
+    DeniedTopicGuard,
     LanguageGuard,
     TopicScopeGuard,
 )
@@ -97,6 +98,7 @@ def build_ingress_pipeline() -> GuardrailPipeline:
             PHIAccessEntitlementGuard(),
 
             # ── Layer 4 – Content Scope ───────────────────────────────────────
+            DeniedTopicGuard(),         # block: configured deny-list
             TopicScopeGuard(),          # warn by default
             LanguageGuard(),            # warn by default
 
