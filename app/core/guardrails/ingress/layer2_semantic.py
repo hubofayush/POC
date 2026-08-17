@@ -22,6 +22,24 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# Shared encoder cache
+# ---------------------------------------------------------------------------
+# all-MiniLM-L6-v2 is ~90 MB on disk — loading it per guard duplicates memory.
+# Cache one instance per model name, shared across guards.
+
+_encoder_cache: dict[str, SentenceTransformer] = {}
+
+
+def get_encoder(model_name: str) -> SentenceTransformer:
+    """Return the cached SentenceTransformer instance for ``model_name``."""
+    if model_name not in _encoder_cache:
+        logger.info("guardrail.encoder.loading", model=model_name)
+        _encoder_cache[model_name] = SentenceTransformer(model_name)
+    return _encoder_cache[model_name]
+
+
 # Curated bank of prompt injection attack templates
 _INJECTION_TEMPLATES: list[str] = [
     # Direct instruction override
@@ -91,7 +109,7 @@ class SemanticInjectionGuard(BaseGuardrail):
 
         if self.enabled:
             logger.info("guardrail.semantic.loading_model", model=self.model_name)
-            self.model = SentenceTransformer(self.model_name)
+            self.model = get_encoder(self.model_name)
             logger.info(
                 "guardrail.semantic.encoding_templates",
                 count=len(_INJECTION_TEMPLATES),

@@ -87,7 +87,7 @@ class LLMEvaluatorGuard(BaseGuardrail):
         # Normalize model name for standard API endpoints if needed
         model_name = self.model
         if "gemini-3.1" in model_name:
-            model_name = "gemini-2.5-flash"  # fallback to active flash model if standard alias
+            model_name = "gemini-3.1-flash-lite"
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
         headers = {"x-goog-api-key": api_key}
