@@ -34,6 +34,7 @@ from app.core.guardrails.ingress.layer2_security import (
     PromptInjectionGuard,
 )
 from app.core.guardrails.ingress.layer2_semantic import SemanticInjectionGuard
+from app.core.guardrails.ingress.layer2_wordlist import WordFilterGuard
 from app.core.guardrails.ingress.layer3_policy import (
     ConsentGuard,
     PHIAccessEntitlementGuard,
@@ -81,6 +82,7 @@ def build_ingress_pipeline() -> GuardrailPipeline:
             DelimiterHijackGuard(),
             EncodedPayloadGuard(),
             ExcessiveRepetitionGuard(),
+            WordFilterGuard(),          # profanity / banned words (block)
             PHIInInputGuard(),          # warn-only: PHI in the text input
             FilePhiGuard(),             # warn-only: PHI in CSV/PDF file content
 
