@@ -62,13 +62,30 @@ class Settings(BaseSettings):
     GUARDRAIL_SEMANTIC_THRESHOLD: float = 0.65
     GUARDRAIL_SEMANTIC_MODE: str = "block"        # "block" | "warn"
 
+    # Industry-level Harmful Content Guard (Layer 4 – org-agnostic)
+    GUARDRAIL_HARMFUL_ENABLED: bool = True
+    GUARDRAIL_HARMFUL_MODE: str = "block"         # "block" | "warn"
+    GUARDRAIL_HARMFUL_THRESHOLD: float = 0.75     # cosine similarity vs template bank
+
+    # Content Moderation Guard (Layer 4 – hate speech, insults, sexual, misconduct)
+    GUARDRAIL_MODERATION_ENABLED: bool = True
+    GUARDRAIL_MODERATION_MODE: str = "block"      # "block" | "warn"
+    GUARDRAIL_MODERATION_THRESHOLD: float = 0.75  # cosine similarity vs template bank
+
+    # Denied Topics Guard (Layer 4 – deny-list, comma-separated keywords)
+    GUARDRAIL_DENIED_TOPICS: str = ""
+
+    # Word filter (profanity) — ingress blocks, egress masks
+    GUARDRAIL_WORD_FILTER_ENABLED: bool = True
+    GUARDRAIL_WORD_FILTER_WORDS: str = ""         # extra words beyond the curated set
+
     # LLM-based Guardrail Settings (Layer 5 – Ingress)
     LLM_GUARDRAIL_ENABLED: bool = True
     LLM_GUARDRAIL_PROVIDER: str = "gemini"    # "gemini" | "openai" | "ollama" | "mock"
     LLM_GUARDRAIL_API_KEY: str = ""           # GEMINI_API_KEY from environment
     LLM_GUARDRAIL_MODEL: str = "gemini-3.1-flash-lite"
     LLM_GUARDRAIL_MODE: str = "block"          # "block" | "warn"
-    LLM_GUARDRAIL_TIMEOUT_SEC: float = 2.0     # Maximum execution timeout in seconds
+    LLM_GUARDRAIL_TIMEOUT_SEC: float = 6.0     # Maximum execution timeout in seconds
     LLM_GUARDRAIL_FAIL_OPEN: bool = False      # False = fail closed (block) if evaluator unavailable
 
     # ── Egress / Output Guardrails ──────────────────────────────────────────
