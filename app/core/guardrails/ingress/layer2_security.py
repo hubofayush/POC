@@ -28,6 +28,12 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
+# PHI-input masking — imported lazily to avoid circular imports
+# ---------------------------------------------------------------------------
+
+from app.core.phi.masker import mask_phi  # noqa: E402
+
+# ---------------------------------------------------------------------------
 # Normalisation helpers (shared across guards)
 # ---------------------------------------------------------------------------
 
@@ -307,6 +313,11 @@ class PHIInInputGuard(BaseGuardrail):
                 count=len(findings),
                 user_id=user.get("sub"),
             )
+            # Mask the input via the hybrid PHI masker (regex + Presidio NLP)
+            # and stash it for the invoke service, which forwards the masked
+            # text to D3 instead of the raw input.
+            if settings.GUARDRAIL_INPUT_PHI_MASK:
+                context["_masked_input"] = mask_phi(input_text, "hr")
             # Warn-only: return PASS with note in details
             return GuardrailResult(
                 passed=True,

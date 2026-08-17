@@ -140,13 +140,20 @@ async def process_invoke(
     logger.info("ingress.guardrails.passed", trace_id=trace_id)
 
     # ── PHI Masking ──────────────────────────────────────────────────────────
+    # Prefer the mask computed inside the guardrail pipeline (Presidio
+    # anonymize_pii, stashed as context["_masked_input"]); fall back to the
+    # legacy mask_phi path when no PHI was flagged by the pipeline.
+    masked_by_guard = guardrail_context.get("_masked_input")
+
     requires_phi = request.context.get("requires_phi", True)
     user_role = user.get("role", "hr")
 
     async def _mask(text: str) -> str:
         return await asyncio.to_thread(mask_phi, text, "hr")
 
-    if requires_phi:
+    if masked_by_guard is not None:
+        safe_input = masked_by_guard
+    elif requires_phi:
         safe_input = await _mask(request.input)
     else:
         if user_role in ("admin", "compliance_officer"):

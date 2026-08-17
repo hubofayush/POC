@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     GUARDRAIL_WORD_FILTER_ENABLED: bool = True
     GUARDRAIL_WORD_FILTER_WORDS: str = ""         # extra words beyond the curated set
 
+    # Mask PHI in user input inside the ingress pipeline (Presidio anonymize_pii).
+    # The masked text (context["_masked_input"]) is forwarded to D3 instead of raw input.
+    GUARDRAIL_INPUT_PHI_MASK: bool = True
+
     # LLM-based Guardrail Settings (Layer 5 – Ingress)
     LLM_GUARDRAIL_ENABLED: bool = True
     LLM_GUARDRAIL_PROVIDER: str = "gemini"    # "gemini" | "openai" | "ollama" | "mock"
