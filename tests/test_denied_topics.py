@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.config import settings
 from app.core.guardrails.ingress.layer4_content import DeniedTopicGuard
 
 ADMIN_USER = {"sub": "admin_01", "role": "admin", "org": "test_org"}

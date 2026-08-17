@@ -21,7 +21,7 @@ import re
 from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.guardrails.base import PASS, BaseGuardrail, GuardrailResult
