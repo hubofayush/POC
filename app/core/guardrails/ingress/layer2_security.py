@@ -28,6 +28,12 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 # ---------------------------------------------------------------------------
+# PHI-input masking — imported lazily to avoid circular imports
+# ---------------------------------------------------------------------------
+
+from app.core.phi.masker import mask_phi  # noqa: E402
+
+# ---------------------------------------------------------------------------
 # Normalisation helpers (shared across guards)
 # ---------------------------------------------------------------------------
 
@@ -59,9 +65,11 @@ def _normalise(text: str) -> str:
 
 _INJECTION_PATTERNS: list[str] = [
     # ── Direct instruction override ──
-    r"(?:ignore|disregard|forget|bypass|override|skip)\s+(?:all\s+)?(?:previous|prior|above|system)\s+(?:instructions?|prompts?|rules?|directives?|guidelines?)",
-    # ── Persona hijacking ──
+    r"(?:ignore|disregard|forget|bypass|override|skip)\s+(?:all\s+)?(?:previous\s+|prior\s+|above\s+|system\s+|safety\s+|security\s+)?(?:instructions?|prompts?|rules?|directives?|guidelines?)",
+    # ── Persona hijacking / Developer mode ──
     r"(?:you\s+are\s+now|act\s+as|pretend\s+to\s+be|assume\s+the\s+role\s+of)\s+(?:an?\s+)?(?:unrestricted|evil|jailbroken|developer|admin|system|root|hacker)",
+    r"(?:enter|switch\s+to|enable|activate|start)\s+(?:into\s+)?(?:developer|dev|god|debug|jailbreak|unrestricted|sudo|admin)\s+mode",
+    r"(?:disable|bypass|deactivate|turn\s+off|remove)\s+(?:all\s+)?(?:safety|security|content)\s+(?:filters?|guardrails?|checks?|rules?|protections?)",
     r"you\s+must\s+(?:now\s+)?(?:follow|obey|answer)\s+(?:only|my)\s+(?:new\s+)?instructions",
     # ── DAN / STAN / DUDE / AIM jailbreaks ──
     r"\bdan\b.*\bdo\s+anything\s+now\b",
@@ -86,6 +94,7 @@ _INJECTION_PATTERNS: list[str] = [
     r"(?:escape|exit|break\s+out\s+of)\s+(?:the\s+)?(?:sandbox|container|restrictions?|guardrails?|limitations?)",
     r"(?:pretend|imagine|suppose|assume)\s+(?:there\s+are|you\s+have)\s+no\s+(?:restrictions?|rules?|guidelines?|limits?)",
 ]
+
 
 _COMPILED_INJECTION = [
     re.compile(p, re.IGNORECASE | re.MULTILINE | re.DOTALL)
@@ -307,6 +316,11 @@ class PHIInInputGuard(BaseGuardrail):
                 count=len(findings),
                 user_id=user.get("sub"),
             )
+            # Mask the input via the hybrid PHI masker (regex + Presidio NLP)
+            # and stash it for the invoke service, which forwards the masked
+            # text to D3 instead of the raw input.
+            if settings.GUARDRAIL_INPUT_PHI_MASK:
+                context["_masked_input"] = mask_phi(input_text, "hr")
             # Warn-only: return PASS with note in details
             return GuardrailResult(
                 passed=True,

@@ -1,0 +1,78 @@
+# ── docker-compose.prod.yml ────────────────────────────────────────────────
+# Production overlay. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# This file ONLY overrides values that differ from the base docker-compose.yml.
+# It does NOT duplicate the full service definition.
+
+services:
+  db:
+    restart: always
+    environment:
+      # Prod DB name / user can differ — override here if needed
+      POSTGRES_DB: d5
+      POSTGRES_USER: d5
+      # POSTGRES_PASSWORD is inherited from .env (never hard-coded)
+    # In production, do NOT expose the DB port to the host
+    ports: !reset []
+
+  app:
+    restart: always
+    build:
+      context: .
+      # Use the full-quality spaCy model in production
+      args:
+        NLP_MODEL: en_core_web_lg
+    environment:
+      # ── App behaviour ──────────────────────────────────────────────────
+      DEBUG: "false"
+      LOG_LEVEL: "WARNING"
+
+      # Production DB — uses the postgres service (not SQLite)
+      DATABASE_URL: postgresql+asyncpg://d5:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}@db:5432/d5
+
+      # Never auto-create tables in prod — use alembic migrations only
+      DB_AUTO_CREATE: "false"
+
+      # Trust one reverse proxy (nginx / ALB / Cloudflare) for real client IP
+      TRUST_PROXY_COUNT: "1"
+
+      # ── Guardrails: fail closed in prod ───────────────────────────────
+      GUARDRAIL_TOPIC_MODE: "block"
+      GUARDRAIL_LANGUAGE_MODE: "block"
+      GUARDRAIL_ENCODED_PAYLOAD_BLOCK: "true"
+      GUARDRAIL_CONSENT_DEFAULT_GRANTED: "false"
+
+      LLM_GUARDRAIL_MODE: "block"
+      LLM_GUARDRAIL_FAIL_OPEN: "false"
+
+      GUARDRAIL_EGRESS_PHI_MODE: "block"
+      GUARDRAIL_EGRESS_LLM_MODE: "block"
+
+      # ── Model routing / fallback chain ────────────────────────────────
+      # Primary provider. On failure: circuit breaker opens after 5 errors,
+      # resets after 30 s. Set LLM_GUARDRAIL_FAIL_OPEN=false → fail closed.
+      LLM_GUARDRAIL_PROVIDER: "gemini"
+      LLM_GUARDRAIL_MODEL: "gemini-2.0-flash-lite"
+      LLM_GUARDRAIL_TIMEOUT_SEC: "6.0"
+
+      GUARDRAIL_EGRESS_LLM_MODEL: "gemini-2.0-flash-lite"
+      GUARDRAIL_EGRESS_LLM_TIMEOUT_SEC: "6.0"
+
+      # ── JWT key paths (mounted from Docker secrets below) ────────────
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public_key
+
+    # In production the app is behind a reverse proxy — do NOT expose 8000
+    # to the public internet. Uncomment the port if running standalone.
+    # ports:
+    #   - "8000:8000"
+
+    # JWT keys mounted as read-only secrets (not a plain volume)
+    # For Docker Compose (non-Swarm), we simulate secrets with bind mounts.
+    volumes:
+      - ./keys:/run/secrets:ro
+
+    depends_on:
+      db:
+        condition: service_healthy

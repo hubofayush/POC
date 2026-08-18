@@ -1,0 +1,48 @@
+# ── D5 Security Layer · .dockerignore ──────────────────────────────────────
+# Exclude files from the Docker build context.
+# Smaller context = faster builds and no risk of leaking secrets/dev state.
+
+# Python runtime artifacts
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.deepeval/
+*.egg-info/
+
+# Local databases (dev and test SQLite files)
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets and keys — NEVER in the image; mounted as volumes/secrets at runtime
+.env
+.env.*
+!.env.example
+!.env.prod.example
+keys/
+
+# Dependency lock files (already installed in builder stage; not needed at runtime)
+uv.lock
+
+# Test suite — not needed in the production image
+tests/
+
+# Documentation and planning files
+docs/
+.planning/
+postman/
+
+# IDE and OS artifacts
+.git/
+.github/
+*.md
+*.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/

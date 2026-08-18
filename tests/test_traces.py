@@ -26,9 +26,12 @@ async def _admin_token(client) -> str:
 
 
 async def _comp_token(client) -> str:
+    from app.repositories.auth_repository import ensure_demo_users
+    await ensure_demo_users()
     resp = await client.post("/auth/login", json={"username": "comp_01", "password": "pass123"})
     assert resp.status_code == 200
     return resp.json()["access_token"]
+
 
 
 @pytest.mark.asyncio

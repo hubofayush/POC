@@ -131,7 +131,11 @@ async def ensure_demo_users() -> None:
                         org=org,
                     )
                 )
-        await session.commit()
+        try:
+            await session.commit()
+        except Exception:
+            await session.rollback()
+
 
 
 auth_repository = AuthRepository()

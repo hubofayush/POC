@@ -26,7 +26,6 @@ from app.core.guardrails.ingress.layer1_schema import (
     UTF8BudgetGuard,
 )
 from app.core.guardrails.ingress.layer2_file_phi import FilePhiGuard
-from app.core.guardrails.ingress.layer2_semantic import SemanticInjectionGuard
 from app.core.guardrails.ingress.layer2_security import (
     DelimiterHijackGuard,
     EncodedPayloadGuard,
@@ -34,6 +33,8 @@ from app.core.guardrails.ingress.layer2_security import (
     PHIInInputGuard,
     PromptInjectionGuard,
 )
+from app.core.guardrails.ingress.layer2_semantic import SemanticInjectionGuard
+from app.core.guardrails.ingress.layer2_wordlist import WordFilterGuard
 from app.core.guardrails.ingress.layer3_policy import (
     ConsentGuard,
     PHIAccessEntitlementGuard,
@@ -41,8 +42,13 @@ from app.core.guardrails.ingress.layer3_policy import (
 )
 from app.core.guardrails.ingress.layer3_tenant_guard import TenantIsolationGuard
 from app.core.guardrails.ingress.layer4_content import (
+    DeniedTopicGuard,
     LanguageGuard,
     TopicScopeGuard,
+)
+from app.core.guardrails.ingress.layer4_harmful import (
+    ContentModerationGuard,
+    HarmfulContentGuard,
 )
 from app.core.guardrails.ingress.layer5_llm import LLMEvaluatorGuard
 
@@ -72,15 +78,21 @@ def build_ingress_pipeline() -> GuardrailPipeline:
             EncodingAnomalyGuard(),
 
             # ── Layer 2 – Security + File PHI ─────────────────────────────────
-            PromptInjectionGuard(),
             DelimiterHijackGuard(),
+            PromptInjectionGuard(),
             EncodedPayloadGuard(),
+
             ExcessiveRepetitionGuard(),
+            WordFilterGuard(),          # profanity / banned words (block)
             PHIInInputGuard(),          # warn-only: PHI in the text input
             FilePhiGuard(),             # warn-only: PHI in CSV/PDF file content
 
             # ── Layer 2.5 – Semantic Embedding Injection Guard ───────────────
             SemanticInjectionGuard(),   # embedding similarity (typo/paraphrase proof)
+
+            # ── Layer 4 – Industry Harmful Content (org-agnostic) ────────────
+            HarmfulContentGuard(),      # weapons/explosives/drugs/self-harm/violence
+            ContentModerationGuard(),   # hate speech/insults/sexual/misconduct
 
             # ── Layer 3 – Policy & Tenant Isolation ───────────────────────────
             TenantIsolationGuard(),     # Blocks cross-tenant context injection
@@ -89,6 +101,7 @@ def build_ingress_pipeline() -> GuardrailPipeline:
             PHIAccessEntitlementGuard(),
 
             # ── Layer 4 – Content Scope ───────────────────────────────────────
+            DeniedTopicGuard(),         # block: configured deny-list
             TopicScopeGuard(),          # warn by default
             LanguageGuard(),            # warn by default
 

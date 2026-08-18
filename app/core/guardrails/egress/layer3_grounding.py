@@ -264,3 +264,110 @@ class HallucinationPatternGuard(BaseGuardrail):
                 )
 
         return PASS
+
+
+# ---------------------------------------------------------------------------
+# 3. Semantic Grounding Guard (embedding-based)
+# ---------------------------------------------------------------------------
+# The docstring's "future enhancement": cosine similarity between the output
+# and the citation chunks, catching paraphrased ungrounded output that
+# term-overlap misses. Uses the shared MiniLM encoder cache.
+
+from app.core.guardrails.ingress.layer2_semantic import get_encoder  # noqa: E402
+
+_MIN_SEMANTIC_LEN = 120        # skip short outputs
+_MIN_CITATIONS_SEMANTIC = 1    # need citations to ground against
+_SEMANTIC_THRESHOLD = 0.55     # min best cosine similarity to consider grounded
+
+
+class SemanticGroundingGuard(BaseGuardrail):
+    """
+    Embedding-based grounding check: output vs. citation chunks.
+
+    Term-overlap (CitationCoverageGuard) misses paraphrases; cosine similarity
+    of MiniLM embeddings catches them. Mode honors
+    settings.GUARDRAIL_EGRESS_GROUNDING_MODE ("warn" | "block").
+    """
+    name = "semantic_grounding"
+
+    def __init__(self) -> None:
+        import torch  # noqa: F401  (ensures sentence-transformers backend ready)
+        from sentence_transformers import SentenceTransformer  # noqa: F401
+        self.encoder = get_encoder(settings.GUARDRAIL_SEMANTIC_MODEL)
+
+    @staticmethod
+    def _citation_blob(citations: list[Any]) -> str:
+        parts: list[str] = []
+        for c in citations:
+            if isinstance(c, str):
+                parts.append(c)
+            elif isinstance(c, dict):
+                parts.append(
+                    " ".join(
+                        str(c.get(k) or "")
+                        for k in ("file_name", "filename", "page", "page_number",
+                                  "chunk_id", "chunk_name", "chunk", "text", "content")
+                    )
+                )
+            else:
+                parts.append(str(c))
+        return " ".join(p for p in parts if p)
+
+    async def check(
+        self, input_text: str, context: dict[str, Any], user: dict[str, Any]
+    ) -> GuardrailResult:
+        citations = context.get("_egress_citations", [])
+        if len(input_text) < _MIN_SEMANTIC_LEN or len(citations) < _MIN_CITATIONS_SEMANTIC:
+            return PASS
+
+        import torch
+        from sentence_transformers import util
+
+        blob = self._citation_blob(citations)
+        if not blob.strip():
+            return PASS
+
+        # Cap citation blob to avoid embedding oversized text
+        out_emb = self.encoder.encode(
+            input_text, convert_to_tensor=True, normalize_embeddings=True
+        )
+        cit_emb = self.encoder.encode(
+            blob[:8000], convert_to_tensor=True, normalize_embeddings=True
+        )
+        score = float(util.cos_sim(out_emb, cit_emb)[0][0])
+
+        if score >= _SEMANTIC_THRESHOLD:
+            return PASS
+
+        msg = (
+            f"LLM output is semantically ungrounded in citations "
+            f"(similarity {score:.3f}, threshold {_SEMANTIC_THRESHOLD})."
+        )
+        details = {
+            "similarity_score": round(score, 4),
+            "threshold": _SEMANTIC_THRESHOLD,
+            "output_length": len(input_text),
+            "citation_count": len(citations),
+        }
+
+        mode = settings.GUARDRAIL_EGRESS_GROUNDING_MODE
+        if mode == "block":
+            return GuardrailResult(
+                passed=False,
+                code="EGRESS_UNGROUNDED_OUTPUT",
+                message=msg,
+                layer="egress.layer3.semantic_grounding",
+                details=details,
+            )
+        logger.warning(
+            "guardrail.egress.semantic_grounding.warn",
+            user_id=user.get("sub"),
+            **details,
+        )
+        return GuardrailResult(
+            passed=True,
+            code="EGRESS_UNGROUNDED_WARNED",
+            message=msg,
+            layer="egress.layer3.semantic_grounding",
+            details=details,
+        )

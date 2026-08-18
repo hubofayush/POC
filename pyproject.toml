@@ -29,6 +29,8 @@ dependencies = [
     "presidio-analyzer>=2.2.0",
     "presidio-anonymizer>=2.2.0",
     "spacy>=3.4.0,<4.0.0",
+    # Semantic guardrails (embedding similarity — ingress layers 2.5 / 4)
+    "sentence-transformers>=5.6.0",
 ]
 
 [project.optional-dependencies]
@@ -47,6 +49,7 @@ include = ["app*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--ignore=tests/smoke --ignore=tests/load"
 
 [tool.ruff]
 target-version = "py312"

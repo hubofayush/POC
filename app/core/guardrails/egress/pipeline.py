@@ -30,12 +30,14 @@ from app.core.guardrails.egress.layer2_phi import PHILeakGuard
 from app.core.guardrails.egress.layer3_grounding import (
     CitationCoverageGuard,
     HallucinationPatternGuard,
+    SemanticGroundingGuard,
 )
 from app.core.guardrails.egress.layer4_policy import (
     ForbiddenDisclosureGuard,
     RoleBasedOutputFilterGuard,
     ToxicOutputGuard,
 )
+from app.core.guardrails.egress.layer4_wordlist import ProfanityMaskGuard
 from app.core.guardrails.egress.layer5_llm import LLMOutputEvaluatorGuard
 
 
@@ -61,11 +63,13 @@ def build_egress_pipeline() -> GuardrailPipeline:
             # ── EL3 – Hallucination & Citation Grounding ──────────────────
             CitationCoverageGuard(),          # term-overlap coverage check
             HallucinationPatternGuard(),      # regex-based hallucination signals
+            SemanticGroundingGuard(),         # embedding similarity vs citations
 
             # ── EL4 – Content Policy ──────────────────────────────────────
             ToxicOutputGuard(),               # hate speech / violent language
             ForbiddenDisclosureGuard(),       # system prompt / CoT / API key leakage
             RoleBasedOutputFilterGuard(),     # RBAC clinical-term redaction (always passes)
+            ProfanityMaskGuard(),             # last: mask blocked words in output
 
             # ── EL5 – LLM Output Semantic Evaluator ───────────────────────
             LLMOutputEvaluatorGuard(),        # Gemini semantic safety re-check
