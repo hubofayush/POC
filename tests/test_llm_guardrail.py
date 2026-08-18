@@ -125,7 +125,7 @@ class TestLLMGuardrailApiKeyAndRouting:
         """The API key must travel in the x-goog-api-key header, never the URL."""
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "secret-key-123")
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "gemini")
-        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-2.5-flash")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-3.1-flash-lite")
         monkeypatch.setattr(httpx, "AsyncClient", FakeGeminiClient)
         FakeGeminiClient.captured = {}
 
@@ -156,7 +156,7 @@ class TestLLMGuardrailApiKeyAndRouting:
         """A non-JSON / invalid evaluator response must not crash the pipeline."""
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "some-key")
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "gemini")
-        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-2.5-flash")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-3.1-flash-lite")
         FakeGeminiClient._response_text = "sorry, no json here"
         monkeypatch.setattr(httpx, "AsyncClient", FakeGeminiClient)
 
@@ -170,7 +170,7 @@ class TestLLMGuardrailApiKeyAndRouting:
         """Evaluator JSON missing required fields must fall back, not crash."""
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "some-key")
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "gemini")
-        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-2.5-flash")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-3.1-flash-lite")
         FakeGeminiClient._response_text = json.dumps({"totally": "wrong"})
         monkeypatch.setattr(httpx, "AsyncClient", FakeGeminiClient)
 
@@ -183,7 +183,7 @@ class TestLLMGuardrailApiKeyAndRouting:
         """A scripted unsafe verdict must block in block mode."""
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_API_KEY", "some-key")
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_PROVIDER", "gemini")
-        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-2.5-flash")
+        monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODEL", "gemini-3.1-flash-lite")
         monkeypatch.setattr(settings, "LLM_GUARDRAIL_MODE", "block")
         FakeGeminiClient._response_text = json.dumps(
             {"safe": False, "category": "HARMFUL_CONTENT",

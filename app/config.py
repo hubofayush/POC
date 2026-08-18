@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     GUARDRAIL_EGRESS_LLM_ENABLED: bool = True
     GUARDRAIL_EGRESS_LLM_MODE: str = "block"         # "block" | "warn"
     GUARDRAIL_EGRESS_LLM_MODEL: str = "gemini-3.1-flash-lite"
-    GUARDRAIL_EGRESS_LLM_TIMEOUT_SEC: float = 2.0
+    GUARDRAIL_EGRESS_LLM_TIMEOUT_SEC: float = 6.0
 
     # Presidio PII/PHI Engine Settings
     PRESIDIO_ENABLED: bool = True                   # Master switch for Presidio NLP detection
