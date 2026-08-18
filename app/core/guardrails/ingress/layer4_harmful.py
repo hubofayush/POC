@@ -17,6 +17,7 @@ Mode is controlled by settings.GUARDRAIL_HARMFUL_MODE:
 """
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import Any
 
@@ -166,8 +167,12 @@ class HarmfulContentGuard(BaseGuardrail):
         if len(input_text.strip()) < 10:
             return PASS
 
-        input_embedding = self.encoder.encode(
-            input_text, convert_to_tensor=True, normalize_embeddings=True
+        # Offload CPU-bound embedding to a thread pool
+        input_embedding = await asyncio.to_thread(
+            self.encoder.encode,
+            input_text,
+            convert_to_tensor=True,
+            normalize_embeddings=True,
         )
         scores = util.cos_sim(input_embedding, self.template_embeddings)[0]
         max_idx = int(torch.argmax(scores).item())
@@ -351,8 +356,12 @@ class ContentModerationGuard(BaseGuardrail):
         if len(input_text.strip()) < 10:
             return PASS
 
-        input_embedding = self.encoder.encode(
-            input_text, convert_to_tensor=True, normalize_embeddings=True
+        # Offload CPU-bound embedding to a thread pool
+        input_embedding = await asyncio.to_thread(
+            self.encoder.encode,
+            input_text,
+            convert_to_tensor=True,
+            normalize_embeddings=True,
         )
         best_score = 0.0
         best_cat: str | None = None

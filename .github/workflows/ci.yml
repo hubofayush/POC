@@ -5,18 +5,27 @@ on:
     branches: [main]
   pull_request:
 
+# Cancel in-flight runs for the same branch on new pushes
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 1: Code quality + unit tests
+  # Fast feedback — runs in ~2 min, no Docker needed.
+  # Triggered on every push and PR.
+  # ────────────────────────────────────────────────────────────────────────────
   quality:
+    name: "Quality (lint + types + unit tests)"
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
           cache: "pip"
 
       - name: Install dependencies
@@ -31,12 +40,127 @@ jobs:
       - name: Mypy type check
         run: mypy app/ tests/
 
-      - name: Pytest
-        run: pytest -q --no-header
+      - name: Pytest (unit tests — fast, in-process, no Docker)
+        run: pytest -q --no-header --ignore=tests/smoke --ignore=tests/load
 
-      - name: Verify migrations upgrade
+      - name: Verify alembic migrations upgrade cleanly
         env:
           DATABASE_URL: sqlite+aiosqlite:///./ci_mig.db
         run: |
           alembic upgrade head
           alembic current
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 2: Docker build + smoke tests
+  # Builds the REAL Docker image, boots it, seeds users, then hits it over HTTP.
+  # This is the gate that proves "it runs as a container" not just "it runs locally".
+  # Triggered on every push and PR (only after quality passes).
+  # ────────────────────────────────────────────────────────────────────────────
+  docker-smoke:
+    name: "Docker Smoke Tests"
+    runs-on: ubuntu-latest
+    needs: quality   # only runs if Job 1 passes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Build the image ────────────────────────────────────────────────────
+      - name: "Docker build (NLP_MODEL=en_core_web_sm for fast CI builds)"
+        run: |
+          docker build \
+            --build-arg NLP_MODEL=en_core_web_sm \
+            --tag d5-security-layer:ci \
+            .
+
+      # ── Start the container ────────────────────────────────────────────────
+      # Uses SQLite (no Postgres) + mock LLM provider (no API key needed).
+      # Guardrails in warn mode so benign smoke payloads pass through.
+      - name: "Start container (SQLite + mock LLM)"
+        run: |
+          docker run -d \
+            --name d5_smoke \
+            -p 8000:8000 \
+            -e DATABASE_URL="sqlite+aiosqlite:///./d5_ci.db" \
+            -e DB_AUTO_CREATE="true" \
+            -e LLM_GUARDRAIL_PROVIDER="mock" \
+            -e LLM_GUARDRAIL_MODE="warn" \
+            -e GUARDRAIL_EGRESS_LLM_ENABLED="false" \
+            -e GUARDRAIL_TOPIC_MODE="warn" \
+            -e GUARDRAIL_LANGUAGE_MODE="warn" \
+            -e GUARDRAIL_CONSENT_DEFAULT_GRANTED="true" \
+            -e PRESIDIO_NLP_MODEL="en_core_web_sm" \
+            -e DEBUG="true" \
+            -e LOG_LEVEL="INFO" \
+            -e TRUST_PROXY_COUNT="0" \
+            -e JWT_PRIVATE_KEY_PATH="/app/keys/private.pem" \
+            -e JWT_PUBLIC_KEY_PATH="/app/keys/public.pem" \
+            -v "${{ github.workspace }}/keys:/app/keys:ro" \
+            d5-security-layer:ci
+
+      # ── Wait for liveness ──────────────────────────────────────────────────
+      - name: "Wait for /health/live → 200"
+        timeout-minutes: 3
+        run: |
+          echo "Waiting for service to become live..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              http://localhost:8000/health/live 2>/dev/null || echo "000")
+            echo "  Attempt $i/30: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Service is live!"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "❌ Timed out waiting for service"
+              docker logs d5_smoke
+              exit 1
+            fi
+            sleep 5
+          done
+
+      # ── Wait for readiness (DB must be up) ────────────────────────────────
+      - name: "Wait for /health/ready → 200"
+        timeout-minutes: 1
+        run: |
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              http://localhost:8000/health/ready 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Service is ready!"
+              break
+            fi
+            echo "  Readiness check $i/12: HTTP $STATUS"
+            sleep 5
+          done
+
+      # ── Seed demo users ────────────────────────────────────────────────────
+      # Runs seed_users.py INSIDE the already-running container.
+      # This creates admin_01/comp_01/hr_01/clinician_01 (all password: pass123)
+      # which the smoke tests use to log in.
+      - name: "Seed demo users (admin_01, hr_01, clinician_01, comp_01)"
+        run: |
+          docker exec d5_smoke \
+            python scripts/seed_users.py --demo
+
+      # ── Run smoke tests ────────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: "Install smoke test runner (httpx + pytest)"
+        run: pip install httpx pytest
+
+      - name: "Run smoke tests against http://localhost:8000"
+        env:
+          SMOKE_BASE_URL: http://localhost:8000
+        run: pytest tests/smoke/ -v --tb=short
+
+      # ── Always print logs if something failed ──────────────────────────────
+      - name: "Print container logs (on failure)"
+        if: failure()
+        run: docker logs d5_smoke
+
+      - name: "Stop and remove container"
+        if: always()
+        run: docker rm -f d5_smoke || true

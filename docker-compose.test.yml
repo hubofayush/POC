@@ -1,0 +1,63 @@
+# ── docker-compose.test.yml ────────────────────────────────────────────────
+# CI / smoke-test overlay. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
+#
+# Goals:
+#   - No Postgres dependency  → uses SQLite (no extra service, CI is faster)
+#   - LLM guardrail = mock    → no real API key required in CI
+#   - DB auto-create = true   → no migration step needed for smoke tests
+#   - Port 8000 exposed       → smoke test runner can reach http://localhost:8000
+
+services:
+  # Disable the Postgres service entirely in C
+
+  app:
+    build:
+      context: .
+      args:
+        # Smaller model in CI — faster Docker build, Presidio still loads
+        NLP_MODEL: en_core_web_sm
+    ports:
+      - "8000:8000"
+    environment:
+      # ── Use SQLite instead of PostgreSQL ──────────────────────────────
+      DATABASE_URL: "sqlite+aiosqlite:///./d5_ci.db"
+      DB_AUTO_CREATE: "true"
+
+      # ── Mock LLM guardrail (no API key needed) ─────────────────────
+      LLM_GUARDRAIL_PROVIDER: "mock"
+      LLM_GUARDRAIL_ENABLED: "true"
+      LLM_GUARDRAIL_MODE: "warn" # warn so smoke test payloads are not blocked
+
+      GUARDRAIL_EGRESS_LLM_ENABLED: "false" # skip egress LLM in CI
+
+      # ── Guardrails in warn mode so smoke tests can pass clean inputs ─
+      GUARDRAIL_TOPIC_MODE: "warn"
+      GUARDRAIL_LANGUAGE_MODE: "warn"
+      GUARDRAIL_CONSENT_DEFAULT_GRANTED: "true" # smoke tests don't set consent
+
+      # ── JWT keys: use dev keys from the repo (never secrets) ─────────
+      JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
+      JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
+
+      # ── Logging ───────────────────────────────────────────────────────
+      DEBUG: "true"
+      LOG_LEVEL: "INFO"
+
+      TRUST_PROXY_COUNT: "0"
+
+    # Mount dev keys (already in repo for local dev)
+    volumes:
+      - ./keys:/app/keys:ro
+    # No depends_on: db (we dropped postgres in CI)
+    depends_on: {}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(''http://127.0.0.1:8000/health/live'', timeout=4).status == 200 else 1)"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s

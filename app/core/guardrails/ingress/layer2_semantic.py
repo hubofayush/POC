@@ -11,6 +11,7 @@ and word reorderings automatically by measuring cosine similarity in dense vecto
 """
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import torch
@@ -131,8 +132,13 @@ class SemanticInjectionGuard(BaseGuardrail):
             return PASS
 
         # Encode input text (normalized for cosine similarity dot product)
-        input_embedding = self.model.encode(
-            input_text, convert_to_tensor=True, normalize_embeddings=True
+        # Offload to a thread pool — model.encode() is CPU-bound and would
+        # otherwise block the entire asyncio event loop for every request.
+        input_embedding = await asyncio.to_thread(
+            self.model.encode,
+            input_text,
+            convert_to_tensor=True,
+            normalize_embeddings=True,
         )
 
         # Compute cosine similarities against pre-encoded templates

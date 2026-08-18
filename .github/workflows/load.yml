@@ -1,0 +1,130 @@
+name: Load Gate
+
+# Runs ONLY when code is merged to main — not on every PR.
+# Goal: prove the service handles 10 concurrent users for 30 seconds.
+# Fails the merge check if p95 > 2000 ms or failure rate > 5%.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: load-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  load-gate:
+    name: "Load Gate (10 users × 30 s)"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Build (same CI image with smaller spaCy model) ────────────────────
+      - name: "Docker build (NLP_MODEL=en_core_web_sm)"
+        run: |
+          docker build \
+            --build-arg NLP_MODEL=en_core_web_sm \
+            --tag d5-security-layer:load \
+            .
+
+      # ── Start container ────────────────────────────────────────────────────
+      - name: "Start container (SQLite + mock LLM)"
+        run: |
+          docker run -d \
+            --name d5_load \
+            -p 8000:8000 \
+            -e DATABASE_URL="sqlite+aiosqlite:///./d5_load.db" \
+            -e DB_AUTO_CREATE="true" \
+            -e LLM_GUARDRAIL_PROVIDER="mock" \
+            -e LLM_GUARDRAIL_MODE="warn" \
+            -e GUARDRAIL_EGRESS_LLM_ENABLED="false" \
+            -e GUARDRAIL_TOPIC_MODE="warn" \
+            -e GUARDRAIL_LANGUAGE_MODE="warn" \
+            -e GUARDRAIL_CONSENT_DEFAULT_GRANTED="true" \
+            -e PRESIDIO_NLP_MODEL="en_core_web_sm" \
+            -e LOG_LEVEL="WARNING" \
+            -e TRUST_PROXY_COUNT="0" \
+            -e JWT_PRIVATE_KEY_PATH="/app/keys/private.pem" \
+            -e JWT_PUBLIC_KEY_PATH="/app/keys/public.pem" \
+            -v "${{ github.workspace }}/keys:/app/keys:ro" \
+            d5-security-layer:load
+
+      # ── Wait for service ───────────────────────────────────────────────────
+      - name: "Wait for /health/ready"
+        timeout-minutes: 3
+        run: |
+          for i in $(seq 1 36); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              http://localhost:8000/health/ready 2>/dev/null || echo "000")
+            echo "  Attempt $i/36: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Service ready for load test!"
+              break
+            fi
+            if [ "$i" = "36" ]; then
+              echo "❌ Service failed to become ready"
+              docker logs d5_load
+              exit 1
+            fi
+            sleep 5
+          done
+
+      # ── Seed demo users ────────────────────────────────────────────────────
+      - name: "Seed demo users (load test logs in as admin_01)"
+        run: |
+          docker exec d5_load python scripts/seed_users.py --demo
+
+      # ── Set up Python + Locust ─────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: "Install Locust"
+        run: pip install locust
+
+      # ── Run the load test ─────────────────────────────────────────────────
+      # 10 users, 5/s spawn rate, 30-second run, output to CSV
+      - name: "Run Locust (10 users × 30 s headless)"
+        run: |
+          locust \
+            --headless \
+            --host http://localhost:8000 \
+            --users 10 \
+            --spawn-rate 5 \
+            --run-time 30s \
+            --csv load_results \
+            --html load_report.html \
+            -f tests/load/locustfile.py
+
+      # ── Check thresholds ───────────────────────────────────────────────────
+      # Fails the job (exit 1) if:
+      #   - overall failure rate > 5%
+      #   - POST /invoke p95 latency > 2000 ms
+      - name: "Check load thresholds (p95 < 2000 ms, failure rate < 5%)"
+        env:
+          MAX_P95_MS: "2000"
+          MAX_FAILURE_RATE: "0.05"
+          CHECK_ENDPOINT: "POST /invoke"
+        run: python scripts/check_load_results.py load_results_stats.csv
+
+      # ── Upload artifacts ───────────────────────────────────────────────────
+      - name: "Upload load test results"
+        if: always()   # upload even if thresholds failed (for debugging)
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results-${{ github.sha }}
+          path: |
+            load_results_stats.csv
+            load_results_failures.csv
+            load_report.html
+          retention-days: 30
+
+      # ── Cleanup ────────────────────────────────────────────────────────────
+      - name: "Print container logs (on failure)"
+        if: failure()
+        run: docker logs d5_load
+
+      - name: "Stop and remove container"
+        if: always()
+        run: docker rm -f d5_load || true

@@ -29,7 +29,7 @@ coverage==7.15.2
 cryptography==49.0.0
 cymem==2.0.13
 # Editable Git install with no remote (d5-security-layer==0.1.0)
--e d:\fde\d5\poc
+-e .
 dataclasses-json==0.6.7
 datasets==5.0.0
 debugpy==1.8.21
@@ -168,10 +168,8 @@ python-dateutil==2.9.0.post0
 python-docx==1.2.0
 python-dotenv==1.2.2
 python-multipart==0.0.32
-pywin32==312
 PyYAML==6.0.3
 pyzmq==27.1.0
--e git+https://github.com/hubofayush/pipeline.git@8d4b6e4f018ecc7c7d0d36c7b60566bffe3e1ff5#egg=rag_eval_pipeline
 ragas==0.4.3
 regex==2026.7.19
 requests==2.34.2
